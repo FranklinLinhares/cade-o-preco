@@ -27,6 +27,10 @@ export async function POST(request: Request) {
   if (!corpo.produto || !corpo.unidade || !(corpo.unidade in UNIDADES)) {
     return NextResponse.json({ erro: "Informe o produto e a unidade." }, { status: 400 });
   }
+  // Textos grandes só gastam a IA à toa (e o limite diário é por conta, não por tamanho).
+  if (corpo.produto.length > 120 || (corpo.especificacoes?.length ?? 0) > 1000 || (corpo.produto_chave?.length ?? 0) > 120) {
+    return NextResponse.json({ erro: "Descreva o produto em poucas palavras." }, { status: 400 });
+  }
 
   const { data: media } = corpo.produto_chave
     ? await supabase.rpc("preco_medio_regional", { chave: corpo.produto_chave }).maybeSingle<{ preco_medio: number | null }>()

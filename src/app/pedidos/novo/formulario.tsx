@@ -59,7 +59,7 @@ export function FormularioPedido({ produtoInicial, fornecedores }: { produtoInic
         <input type="hidden" name="referencia_preco" value={referencia ? JSON.stringify(referencia) : ""} />
         <div>
           <label className="rotulo" htmlFor="produto">Produto</label>
-          <input id="produto" name="produto" required defaultValue={item.produto} className="campo" />
+          <input id="produto" name="produto" required maxLength={120} defaultValue={item.produto} className="campo" />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <div>
@@ -81,7 +81,7 @@ export function FormularioPedido({ produtoInicial, fornecedores }: { produtoInic
         </div>
         <div>
           <label className="rotulo" htmlFor="especificacoes">Especificações</label>
-          <textarea id="especificacoes" name="especificacoes" rows={2} defaultValue={item.especificacoes} placeholder="Tipo, classe, corte, embalagem..." className="campo" />
+          <textarea id="especificacoes" name="especificacoes" rows={2} maxLength={1000} defaultValue={item.especificacoes} placeholder="Tipo, classe, corte, embalagem..." className="campo" />
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <div>

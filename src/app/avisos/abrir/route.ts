@@ -12,6 +12,6 @@ export async function GET(request: Request) {
     .select("link")
     .maybeSingle();
   // Só caminhos do próprio app.
-  const destino = typeof data?.link === "string" && data.link.startsWith("/") && !data.link.startsWith("//") ? data.link : "/avisos";
+  const destino = typeof data?.link === "string" && data.link.startsWith("/") && !data.link.startsWith("//") && !data.link.includes("\\") ? data.link : "/avisos";
   return NextResponse.redirect(new URL(destino, url.origin));
 }

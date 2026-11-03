@@ -356,6 +356,18 @@ await como(ids.atacado, `update avisos set lido = true where empresa_id = $1`, [
 assert.ok((await db.query(`select 1 from avisos where empresa_id = $1 and not lido`, [ids.restaurante])).rows.length > 0, "outra conta não mexe nos avisos");
 await como(ids.restaurante, `update avisos set lido = true where not lido`);
 assert.equal((await db.query(`select 1 from avisos where empresa_id = $1 and not lido`, [ids.restaurante])).rows.length, 0);
+// O texto e o link dos avisos não podem ser reescritos (0023).
+await falha(ids.restaurante, `update avisos set link = '/\\golpe.com', texto = 'x'`, [], /permission denied/);
+
+// Cancelar um leilão só muda o status (0023): não dá para escolher vencedor
+// nem trocar o produto junto, o que mandaria "Você venceu..." com texto livre.
+const golpe = (await como(ids.restaurante, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em)
+  values ($1, 'Milho', 'milho', 'graos', 'kg', 10, ${amanha}) returning id`, [ids.restaurante])).rows[0].id;
+const lanceGolpe = (await como(ids.atacado, `select id from dar_lance($1, 3.00)`, [golpe])).rows[0].id;
+await falha(ids.restaurante, `update pedidos set status = 'cancelado', lance_vencedor_id = $2, produto = 'Pix pendente' where id = $1`, [golpe, lanceGolpe], /permission denied/);
+assert.ok(!(await avisos(ids.atacado)).some((t) => t.includes("Pix pendente")), "dono do lance não recebe aviso falso");
+await como(ids.restaurante, `update pedidos set status = 'cancelado' where id = $1`, [golpe]);
+assert.equal((await db.query(`select status from pedidos where id = $1`, [golpe])).rows[0].status, "cancelado");
 
 // Alerta de preço: avisa quando aparece oferta dentro do preço, para quem pode comprar.
 await como(ids.restaurante, `insert into alertas_preco (empresa_id, produto, produto_chave, unidade, preco_maximo) values ($1, 'Cebola', 'cebola', 'kg', 4)`, [ids.restaurante]);

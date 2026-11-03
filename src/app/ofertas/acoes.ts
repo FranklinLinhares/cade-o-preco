@@ -158,7 +158,7 @@ export async function publicarFolheto(dados: {
 
   const linhas = [];
   for (const item of dados.itens) {
-    const produto = String(item.produto ?? "").trim();
+    const produto = String(item.produto ?? "").trim().slice(0, 120);
     const preco = Number(item.preco_unitario);
     const quantidade = Number(item.quantidade_disponivel);
     if (!produto) return { erro: "Há um item sem nome." };
@@ -169,7 +169,7 @@ export async function publicarFolheto(dados: {
       fornecedor_id: empresa.id,
       produto,
       produto_chave: chaveDoProduto(String(item.produto_chave || "")) || chaveDoProduto(produto),
-      descricao: String(item.descricao ?? "").trim() || null,
+      descricao: String(item.descricao ?? "").trim().slice(0, 1000) || null,
       categoria: item.categoria,
       unidade: item.unidade,
       preco_unitario: preco,

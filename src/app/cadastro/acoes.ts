@@ -30,8 +30,9 @@ export async function salvarEmpresa(_: EstadoCadastro, form: FormData): Promise<
   let tipoDocumento: "cnpj" | "cpf" | "cpf_caf" | "cpf_ie" = pessoaFisica ? "cpf" : "cnpj";
   const tamanho = pessoaFisica ? 11 : 14;
   if (!EXIGIR_DOCUMENTO) {
-    // Modo de testes: aceita qualquer número; sem o tamanho certo, gera um de teste.
-    if (documento.length !== tamanho) documento = documentoDeTeste(tamanho);
+    // Modo de testes: aceita qualquer número; inválido vira um de teste (o banco confere os dígitos).
+    const valido = pessoaFisica ? cpfValido(documento) : cnpjValido(documento);
+    if (documento.length !== tamanho || (!valido && !documento.startsWith("000"))) documento = documentoDeTeste(tamanho);
   } else if (pessoaFisica && !cpfValido(documento)) {
     return { erro: "CPF inválido." };
   } else if (!pessoaFisica && !cnpjValido(documento)) {

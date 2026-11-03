@@ -118,7 +118,7 @@ export async function criarLeiloes(dados: { itens: ItemLeilaoNovo[]; horas: numb
 
   const linhas = [];
   for (const [n, item] of dados.itens.entries()) {
-    const produto = item.produto.trim();
+    const produto = item.produto.trim().slice(0, 120);
     if (!produto) return { erro: `Linha ${n + 1}: falta o nome do produto.` };
     if (!(item.categoria in CATEGORIAS) || !(item.unidade in UNIDADES)) return { erro: `${produto}: escolha a categoria e a unidade.` };
     if (!(item.quantidade > 0)) return { erro: `${produto}: informe a quantidade.` };
@@ -130,7 +130,7 @@ export async function criarLeiloes(dados: { itens: ItemLeilaoNovo[]; horas: numb
       categoria: item.categoria,
       unidade: item.unidade,
       quantidade: item.quantidade,
-      especificacoes: item.especificacoes.trim() || null,
+      especificacoes: item.especificacoes.trim().slice(0, 1000) || null,
       entrega_ate: /^\d{4}-\d{2}-\d{2}$/.test(item.entrega_ate) ? item.entrega_ate : null,
       preco_maximo: item.preco_maximo,
       lances_visiveis: dados.lancesVisiveis,

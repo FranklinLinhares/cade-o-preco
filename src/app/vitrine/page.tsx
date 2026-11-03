@@ -206,7 +206,7 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
                   {o.so_na_loja ? (
                     o.telefone_loja && (
                       <a
-                        href={`https://wa.me/55${o.telefone_loja}?text=${encodeURIComponent(`Olá! Vi no Lance Certo a promoção de ${o.produto} a ${porUnidade(o.preco_unitario, u)}.`)}`}
+                        href={`https://wa.me/55${o.telefone_loja}?text=${encodeURIComponent(`Olá! Vi no Cadê o Preço a promoção de ${o.produto} a ${porUnidade(o.preco_unitario, u)}.`)}`}
                         target="_blank"
                         rel="noreferrer"
                         className="botao-secundario py-1 text-sm"

@@ -93,12 +93,12 @@ export function AvisosNoCelular() {
       <h2 className="font-semibold">📲 Avisos no celular</h2>
       {estado === "instalar-iphone" && (
         <p className="text-sm text-stone-600">
-          No iPhone, os avisos só chegam com o app instalado: no Safari, toque em <strong>Compartilhar</strong> e em <strong>Adicionar à Tela de Início</strong>. Depois abra o Lance Certo pelo ícone e volte aqui.
+          No iPhone, os avisos só chegam com o app instalado: no Safari, toque em <strong>Compartilhar</strong> e em <strong>Adicionar à Tela de Início</strong>. Depois abra o Cadê o Preço pelo ícone e volte aqui.
         </p>
       )}
       {estado === "bloqueado" && (
         <p className="text-sm text-stone-600">
-          As notificações do Lance Certo estão bloqueadas neste aparelho. Libere nas configurações do celular (Notificações) e volte aqui.
+          As notificações do Cadê o Preço estão bloqueadas neste aparelho. Libere nas configurações do celular (Notificações) e volte aqui.
         </p>
       )}
       {estado === "desligado" && (

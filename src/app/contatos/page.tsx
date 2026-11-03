@@ -36,7 +36,7 @@ export default async function MeusContatos({ searchParams }: PageProps<"/contato
           <button className="botao">Buscar</button>
         </form>
         {termo && encontrados.length === 0 && (
-          <p className="text-sm text-stone-600">Ninguém encontrado com conta no Lance Certo. Cadastre a pessoa abaixo.</p>
+          <p className="text-sm text-stone-600">Ninguém encontrado com conta no Cadê o Preço. Cadastre a pessoa abaixo.</p>
         )}
         <ul className="divide-y divide-stone-100">
           {encontrados.map((c) => (

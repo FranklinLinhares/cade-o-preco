@@ -1,4 +1,4 @@
-# Lance Certo
+# Cadê o Preço
 
 Aplicativo de compra e venda de alimentos entre empresas, com leilão de menor preço, vitrine de ofertas e um agente de IA que pesquisa preços.
 

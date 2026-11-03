@@ -4,7 +4,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { CATEGORIAS, UNIDADES, type ReferenciaPreco } from "@/lib/dominio";
 
-// Agente de IA do Lance Certo: transforma texto livre em item estruturado e
+// Agente de IA do Cadê o Preço: transforma texto livre em item estruturado e
 // pesquisa preços de referência na internet.
 
 const MODELO = "claude-opus-5-5";

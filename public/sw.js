@@ -1,4 +1,4 @@
-// Service worker do Lance Certo: mostra os avisos que chegam no celular.
+// Service worker do Cadê o Preço: mostra os avisos que chegam no celular.
 self.addEventListener("push", (evento) => {
   let dados = {};
   try {
@@ -7,7 +7,7 @@ self.addEventListener("push", (evento) => {
     dados = { texto: evento.data ? evento.data.text() : "" };
   }
   evento.waitUntil(
-    self.registration.showNotification(dados.titulo || "Lance Certo", {
+    self.registration.showNotification(dados.titulo || "Cadê o Preço", {
       body: dados.texto || "Você tem um aviso novo.",
       icon: "/icones/icone-192.png",
       badge: "/icones/icone-192.png",

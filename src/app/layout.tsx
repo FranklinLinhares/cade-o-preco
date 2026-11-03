@@ -12,9 +12,9 @@ import { InstalarApp } from "@/components/InstalarApp";
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Lance Certo",
+  title: "Cadê o Preço",
   description: "Compra e venda de alimentos com leilão de menor preço e pesquisa de preços por IA.",
-  appleWebApp: { capable: true, title: "Lance Certo", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Cadê o Preço", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = { themeColor: "#15803d", viewportFit: "cover" };
@@ -26,10 +26,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="sticky top-0 z-30 border-b border-stone-200/70 bg-white/95 shadow-sm shadow-stone-200/40">
           <nav className="relative mx-auto flex max-w-5xl items-center gap-x-2 gap-y-2 px-3 py-2.5 sm:gap-x-4 sm:px-4">
             <Link href="/" className="flex shrink-0 items-center gap-2 text-lg font-bold text-green-800">
-              <span aria-hidden className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-green-500 to-green-800 text-base text-white shadow-sm">
-                ⚖
+              {/* eslint-disable-next-line @next/next/no-img-element -- SVG pequeno e fixo, não precisa de otimização */}
+              <img src="/logo.svg" alt="" aria-hidden width={32} height={32} className="h-8 w-8 shadow-sm rounded-xl" />
+              <span className="hidden sm:inline">
+                Cadê o <span className="text-amber-600">Preço</span>
               </span>
-              <span className="hidden sm:inline">Lance Certo</span>
             </Link>
             <Suspense>
               <Menu />

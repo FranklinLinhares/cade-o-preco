@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
 
-// Permite instalar o Lance Certo na tela inicial do celular, abrindo em tela cheia.
+// Permite instalar o Cadê o Preço na tela inicial do celular, abrindo em tela cheia.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Lance Certo",
-    short_name: "Lance Certo",
+    name: "Cadê o Preço",
+    short_name: "Cadê o Preço",
     description: "Compra e venda de alimentos com leilão de menor preço.",
     lang: "pt-BR",
     start_url: "/",

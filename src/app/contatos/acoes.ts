@@ -50,7 +50,7 @@ export async function criarContatoManual(_: EstadoContato, form: FormData): Prom
     if (conta) {
       await supabase.from("contatos").upsert({ dono_id: empresa.id, contato_id: conta.id, tipo }, { ignoreDuplicates: true });
       revalidatePath("/contatos");
-      return { ok: `${conta.nome} já usa o Lance Certo e foi salvo como seu ${tipo}.` };
+      return { ok: `${conta.nome} já usa o Cadê o Preço e foi salvo como seu ${tipo}.` };
     }
   }
 

@@ -85,7 +85,7 @@ async function localizarCidade(cidade: string, uf: string) {
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.search = new URLSearchParams({ city: cidade, state: uf, country: "Brasil", format: "json", limit: "1" }).toString();
   try {
-    const resposta = await fetch(url, { headers: { "User-Agent": "LanceCerto/0.1" } });
+    const resposta = await fetch(url, { headers: { "User-Agent": "CadeOPreco/0.1" } });
     const [primeiro] = (await resposta.json()) as { lat: string; lon: string }[];
     return primeiro ? { lat: Number(primeiro.lat), lng: Number(primeiro.lon) } : null;
   } catch {

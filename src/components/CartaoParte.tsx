@@ -38,7 +38,7 @@ export async function CartaoParte({ supabase, id, como }: { supabase: Cliente; i
           {empresa ? "Empresa (CNPJ)" : "Pessoa física (CPF)"}
           {parte.agricultor && " · Agricultura familiar"} · {parte.cidade}/{parte.uf}
         </p>
-        <p className="text-xs text-stone-500">No Lance Certo desde {new Date(parte.criado_em).toLocaleDateString("pt-BR")}</p>
+        <p className="text-xs text-stone-500">No Cadê o Preço desde {new Date(parte.criado_em).toLocaleDateString("pt-BR")}</p>
       </div>
       <p className="text-sm">
         <Estrelas

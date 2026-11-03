@@ -54,7 +54,7 @@ export default async function PerfilPublico({ params }: PageProps<"/perfil/[id]"
           {perfil.tipo_documento === "cnpj" ? "Empresa" : "Pessoa física"}
           {perfil.agricultor && " · Agricultura familiar"} · {perfil.cidade}/{perfil.uf}
         </p>
-        <p className="text-sm text-stone-500">No Lance Certo desde {new Date(perfil.criado_em).toLocaleDateString("pt-BR")}</p>
+        <p className="text-sm text-stone-500">No Cadê o Preço desde {new Date(perfil.criado_em).toLocaleDateString("pt-BR")}</p>
         {meuPerfil && (
           <p className="pt-2 text-sm">
             Este é o seu perfil, como os outros veem. <Link href="/cadastro" className="underline">Editar cadastro</Link>

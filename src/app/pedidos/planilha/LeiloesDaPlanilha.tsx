@@ -58,7 +58,7 @@ export function LeiloesDaPlanilha() {
     return (
       <div className="cartao space-y-3">
         <p className="text-sm text-stone-600">
-          Preencha o <a href="/modelo-leiloes-lance-certo.xlsx" download className="font-medium text-green-800 underline">modelo de planilha</a> com
+          Preencha o <a href="/modelo-leiloes-cade-o-preco.xlsx" download className="font-medium text-green-800 underline">modelo de planilha</a> com
           produto, especificações, categoria, unidade, quantidade e, se quiser, o preço máximo e a data de entrega. Depois envie aqui. Aceita .xlsx e .csv.
         </p>
         <input

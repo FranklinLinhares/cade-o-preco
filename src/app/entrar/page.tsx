@@ -14,7 +14,7 @@ export default function Entrar() {
 
   return (
     <div className="mx-auto max-w-sm space-y-4">
-      <h1 className="text-2xl font-bold">{criando ? "Criar conta no Lance Certo" : "Entrar no Lance Certo"}</h1>
+      <h1 className="text-2xl font-bold">{criando ? "Criar conta no Cadê o Preço" : "Entrar no Cadê o Preço"}</h1>
       <div role="tablist" className="grid grid-cols-2 rounded-lg border border-stone-300 bg-white p-1">
         {(["entrar", "criar"] as const).map((m) => (
           <button

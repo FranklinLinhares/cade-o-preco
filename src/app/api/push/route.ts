@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const { texto, link, inscricoes } = (await request.json()) as { texto?: string; link?: string; inscricoes?: Inscricao[] };
   if (!texto || !Array.isArray(inscricoes)) return NextResponse.json({ erro: "Aviso incompleto." }, { status: 400 });
 
-  const carga = JSON.stringify({ titulo: "Lance Certo", texto: texto.slice(0, 300), link: link?.startsWith("/") ? link : "/avisos" });
+  const carga = JSON.stringify({ titulo: "Cadê o Preço", texto: texto.slice(0, 300), link: link?.startsWith("/") ? link : "/avisos" });
   const expirados: string[] = [];
   await Promise.all(
     inscricoes.slice(0, 20).map((i) =>

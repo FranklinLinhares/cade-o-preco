@@ -65,7 +65,7 @@ export function InstalarApp() {
     <div className="mb-4 flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-3 text-sm lg:hidden">
       <span aria-hidden className="text-xl leading-none">📲</span>
       <div className="flex-1 space-y-2">
-        <p className="font-medium text-green-900">Instale o Lance Certo no celular</p>
+        <p className="font-medium text-green-900">Instale o Cadê o Preço no celular</p>
         {iphone ? (
           <p className="text-stone-700">
             No Safari, toque em <strong>Compartilhar</strong> (o quadrado com a seta) e depois em <strong>Adicionar à Tela de Início</strong>.

@@ -11,6 +11,7 @@ export type EstadoCompra = { erro?: string; ok?: string };
 // Envia o pedido de compra ao vendedor; a quantidade fica reservada até ele responder.
 export async function comprarOferta(_: EstadoCompra, form: FormData): Promise<EstadoCompra> {
   const { supabase } = await exigirEmpresa();
+  await supabase.rpc("expirar_reservas"); // libera o estoque de pedidos esquecidos antes de reservar
   const quantidade = Number(String(form.get("quantidade")).replace(",", "."));
   const { error } = await supabase.rpc("reservar_oferta", {
     p_oferta: String(form.get("oferta")),

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { criarClienteNavegador } from "@/lib/supabase/navegador";
+import { mensagemDeErro } from "@/lib/erros";
 
 type Estado = "carregando" | "sem-suporte" | "instalar-iphone" | "bloqueado" | "desligado" | "ligado";
 
@@ -58,10 +59,14 @@ export function AvisosNoCelular() {
         (await registro.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chaveEmBytes(CHAVE_PUBLICA!) }));
       const { endpoint, keys } = inscricao.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
       const { error } = await criarClienteNavegador().rpc("registrar_celular", { p_endpoint: endpoint, p_p256dh: keys.p256dh, p_auth: keys.auth });
-      if (error) throw new Error(error.message);
+      if (error) {
+        setErro(mensagemDeErro(error));
+        return;
+      }
       setEstado("ligado");
-    } catch (e) {
-      setErro(e instanceof Error && e.message ? e.message : "Não deu para ativar agora. Tente de novo.");
+    } catch {
+      // Os erros do navegador ao inscrever o aparelho chegam em inglês.
+      setErro("Não deu para ativar os avisos neste aparelho. Confira a internet e tente de novo.");
     } finally {
       setOcupado(false);
     }

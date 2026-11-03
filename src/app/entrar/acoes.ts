@@ -12,7 +12,7 @@ export async function entrar(estado: EstadoEntrar, form: FormData): Promise<Esta
   } catch (e) {
     unstable_rethrow(e); // deixa o redirect do Next.js passar
     console.error("Falha ao entrar ou criar conta", e);
-    return { erro: `Erro inesperado: ${(e as Error).message}. Abra /diagnostico para ver o que falta configurar.` };
+    return { erro: "Não foi possível entrar agora. Tente de novo em instantes." };
   }
 }
 
@@ -63,5 +63,6 @@ function traduzir(mensagem: string) {
   if (/password/i.test(mensagem)) return "A senha não foi aceita. Use pelo menos 8 caracteres, com letras e números.";
   if (/invalid.*email|email.*invalid/i.test(mensagem)) return "E-mail inválido.";
   if (/fetch failed|network/i.test(mensagem)) return "Não foi possível falar com o banco de dados. Tente de novo.";
-  return mensagem;
+  console.error("Erro de login sem tradução:", mensagem);
+  return "Não foi possível entrar agora. Tente de novo em instantes.";
 }

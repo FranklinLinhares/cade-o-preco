@@ -214,6 +214,26 @@ assert.equal(Number(encerrada.q), 150);
 assert.equal(encerrada.ativa, false, "recusar não republica a oferta encerrada");
 await db.exec(`update ofertas set ativa = true where id = '${ofertaAgricultor}'`);
 
+// Desistir avisa o vendedor; pedido sem resposta em 2 dias expira, devolve o estoque e avisa os dois.
+const avisosDe = async (id) => Number((await db.query(`select count(*) n from avisos where empresa_id = $1`, [id])).rows[0].n);
+const avisosVendedor = await avisosDe(ids.agricultor);
+const desiste = (await como(ids.restaurante, `select id from reservar_oferta($1, 4)`, [ofertaAgricultor])).rows[0].id;
+await como(ids.restaurante, `select cancelar_reserva($1)`, [desiste]);
+assert.equal(await avisosDe(ids.agricultor), avisosVendedor + 2, "pedido e desistência avisam o vendedor");
+assert.match((await db.query(`select texto from avisos where empresa_id = $1 order by criado_em desc, texto limit 1`, [ids.agricultor])).rows[0].texto + "", /desistiu|quer comprar/);
+const esquecida = (await como(ids.restaurante, `select id from reservar_oferta($1, 10)`, [ofertaAgricultor])).rows[0].id;
+const recente = (await como(ids.restaurante, `select id from reservar_oferta($1, 1)`, [ofertaAgricultor])).rows[0].id;
+await db.query(`update reservas set criado_em = now() - interval '3 days' where id = $1`, [esquecida]);
+const avisosComprador = await avisosDe(ids.restaurante);
+assert.equal((await como(ids.restaurante, `select expirar_reservas() n`)).rows[0].n, 1);
+assert.equal((await db.query(`select situacao from reservas where id = $1`, [esquecida])).rows[0].situacao, "expirada");
+assert.equal((await db.query(`select situacao from reservas where id = $1`, [recente])).rows[0].situacao, "aguardando");
+assert.equal(Number((await db.query(`select quantidade_disponivel q from ofertas where id = $1`, [ofertaAgricultor])).rows[0].q), 149);
+assert.equal(await avisosDe(ids.restaurante), avisosComprador + 1, "comprador sabe que expirou");
+await falha(ids.agricultor, `select responder_reserva($1, true)`, [esquecida], /já foi respondido/);
+await falha(ids.restaurante, `select avisar_reserva()`, [], /permission denied|trigger/);
+await como(ids.restaurante, `select cancelar_reserva($1)`, [recente]);
+
 // Histórico semanal com variação.
 await como(ids.restaurante, `insert into compras (comprador_id, fornecedor_nome, produto, produto_chave, categoria, unidade, quantidade, preco_unitario, origem, data)
   values ($1, 'Feira', 'Tomate italiano', 'tomate-italiano', 'hortifruti', 'kg', 50, 3.00, 'externa', current_date - 7)`, [ids.restaurante]);

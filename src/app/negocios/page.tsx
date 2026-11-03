@@ -9,6 +9,7 @@ import { buscarOcultos } from "@/lib/ocultos";
 import { BORDA_CARTAO, Situacao, type TomSituacao } from "@/components/Situacao";
 import { BotaoConfirmar } from "@/components/BotaoConfirmar";
 import { trocarModo } from "@/app/cadastro/modo";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 
 type Negocio = {
   id: string;
@@ -30,7 +31,7 @@ type Reserva = {
   unidade: Unidade;
   quantidade: number;
   preco_unitario: number;
-  situacao: "aguardando" | "aceita" | "recusada" | "cancelada";
+  situacao: "aguardando" | "aceita" | "recusada" | "cancelada" | "expirada";
   criado_em: string;
   comprador: { id: string; nome: string } | null;
   fornecedor: { id: string; nome: string } | null;
@@ -40,15 +41,23 @@ function haSeteDias() {
   return new Date(Date.now() - 7 * 86_400_000).toISOString();
 }
 
-const RESPOSTA: Record<"aguardando" | "recusada" | "cancelada", { tom: TomSituacao; texto: string }> = {
+// Pedido sem resposta expira em 2 dias (expirar_reservas, migração 0024).
+const PRAZO_MS = 2 * 86_400_000;
+function prazo(criado: string) {
+  return dataHora(new Date(new Date(criado).getTime() + PRAZO_MS).toISOString());
+}
+
+const RESPOSTA: Record<"aguardando" | "recusada" | "cancelada" | "expirada", { tom: TomSituacao; texto: string }> = {
   aguardando: { tom: "pedido", texto: "Pedido enviado, aguardando o vendedor aceitar" },
   recusada: { tom: "recusado", texto: "O vendedor recusou" },
   cancelada: { tom: "cancelado", texto: "Você desistiu" },
+  expirada: { tom: "cancelado", texto: "O vendedor não respondeu em 2 dias" },
 };
 
 // Negócios do modo atual: no Comprar só as compras, no Vender só as vendas.
 export default async function Negocios() {
   const { supabase, empresa } = await exigirEmpresa();
+  await supabase.rpc("expirar_reservas");
   const vendendo = empresa.papel === "fornecedor";
 
   const { data } = await supabase
@@ -106,7 +115,7 @@ export default async function Negocios() {
                 <div>
                   <Link href={`/perfil/${r.comprador?.id}`} className="font-medium text-green-800 underline">{r.comprador?.nome}</Link> quer comprar{" "}
                   <strong>{r.quantidade} {r.unidade} de {r.produto}</strong> a {porUnidade(r.preco_unitario, r.unidade)}.
-                  <div className="text-sm text-stone-500">{dataHora(r.criado_em)} · total {reais(r.preco_unitario * r.quantidade)}</div>
+                  <div className="text-sm text-stone-500">{dataHora(r.criado_em)} · total {reais(r.preco_unitario * r.quantidade)} · responda até {prazo(r.criado_em)}</div>
                 </div>
                 <form action={responderReserva} className="flex gap-2">
                   <input type="hidden" name="reserva" value={r.id} />
@@ -131,7 +140,10 @@ export default async function Negocios() {
                 <Marcar form="excluir-negocios" valor={`r:${r.id}`} nome={r.produto} />
                 <div>
                   <span className="font-medium">{r.quantidade} {r.unidade} de {r.produto}</span> com {r.fornecedor?.nome}
-                  <div className="text-sm text-stone-500">{dataHora(r.criado_em)}</div>
+                  <div className="text-sm text-stone-500">
+                    {dataHora(r.criado_em)}
+                    {r.situacao === "aguardando" && ` · sem resposta até ${prazo(r.criado_em)}, o pedido é cancelado`}
+                  </div>
                 </div>
                 </div>
                 {r.situacao === "aguardando" && (
@@ -171,7 +183,7 @@ export default async function Negocios() {
                 {outro && (
                   <div className="text-right text-sm">
                     <Link href={`/perfil/${outro.id}`} className="font-medium text-green-800 underline">{outro.nome}</Link>
-                    <div><a href={`https://wa.me/55${telefones.get(outro.id) ?? ""}`} target="_blank" rel="noreferrer" className="text-stone-500 underline">WhatsApp</a></div>
+                    <div><LinkWhatsApp telefone={telefones.get(outro.id)} className="text-stone-500 underline" /></div>
                   </div>
                 )}
               </div>

@@ -45,6 +45,7 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
   const { supabase, empresa } = await exigirEmpresa();
   // A Vitrine é para comprar; no modo Vender a pessoa vai para as próprias ofertas.
   if (empresa.papel !== "comprador") redirect("/ofertas");
+  await supabase.rpc("expirar_reservas"); // pedidos sem resposta em 2 dias devolvem o estoque
 
   const { data } = await supabase.rpc("vitrine_ofertas", { termo: termo || null });
   // As próprias ofertas ficam em Minhas ofertas; a vitrine mostra só as de outras pessoas.

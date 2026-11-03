@@ -25,6 +25,7 @@ type Oferta = {
 
 export default async function MinhasOfertas() {
   const { supabase, empresa } = await exigirEmpresa();
+  await supabase.rpc("expirar_reservas"); // pedidos sem resposta em 2 dias devolvem o estoque
 
   const { data } = await supabase
     .from("ofertas")

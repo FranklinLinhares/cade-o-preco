@@ -11,6 +11,7 @@ import { buscarTelefones } from "@/lib/telefones";
 import { ConclusaoNegocio, type EstadoConclusao } from "@/components/ConclusaoNegocio";
 import { cancelarPedido } from "../acoes";
 import { trocarModo } from "@/app/cadastro/modo";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { AoVivo } from "./AoVivo";
 import { DarLance } from "./DarLance";
 import { BotaoConfirmar } from "@/components/BotaoConfirmar";
@@ -150,9 +151,9 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
         <div className="cartao border-green-700 bg-green-50">
           <h2 className="font-semibold">Negócio fechado: {porUnidade(vencedor.preco_unitario, u)}</h2>
           {souComprador ? (
-            <p>Fornecedor: {vencedor.fornecedor?.nome} ({vencedor.fornecedor?.cidade}) · <a className="underline" target="_blank" rel="noreferrer" href={`https://wa.me/55${telefones.get(vencedor.fornecedor_id) ?? ""}`}>WhatsApp</a></p>
+            <p>Fornecedor: {vencedor.fornecedor?.nome} ({vencedor.fornecedor?.cidade}) · <LinkWhatsApp telefone={telefones.get(vencedor.fornecedor_id)} /></p>
           ) : (
-            <p>Você venceu! Comprador: {pedido.comprador.nome} · <a className="underline" target="_blank" rel="noreferrer" href={`https://wa.me/55${telefones.get(pedido.comprador_id) ?? ""}`}>WhatsApp</a></p>
+            <p>Você venceu! Comprador: {pedido.comprador.nome} · <LinkWhatsApp telefone={telefones.get(pedido.comprador_id)} /></p>
           )}
           {compraFechada && (
             <div className="mt-3 border-t border-green-200 pt-3">

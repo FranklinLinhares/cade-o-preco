@@ -54,8 +54,13 @@ export async function excluirNegocios(form: FormData) {
   const compras = ids.filter((i) => i.startsWith("c:")).map((i) => i.slice(2));
   const reservas = ids.filter((i) => i.startsWith("r:")).map((i) => i.slice(2));
   const { data: aguardando } = await supabase.from("reservas").select("id").in("id", reservas).eq("situacao", "aguardando");
-  for (const r of aguardando ?? []) await supabase.rpc("cancelar_reserva", { p_reserva: r.id });
+  // Pedido que não deu para cancelar continua na lista: senão some e segue prendendo o estoque.
+  const naoCancelados = new Set<string>();
+  for (const r of aguardando ?? []) {
+    const { error } = await supabase.rpc("cancelar_reserva", { p_reserva: r.id });
+    if (error) naoCancelados.add(r.id);
+  }
   await ocultar(supabase, "compra", compras);
-  await ocultar(supabase, "reserva", reservas);
+  await ocultar(supabase, "reserva", reservas.filter((r) => !naoCancelados.has(r)));
   revalidatePath("/", "layout");
 }

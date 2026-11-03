@@ -36,9 +36,9 @@ await db.exec(`
   insert into auth.users values ('${ids.restaurante}'), ('${ids.atacado}'), ('${ids.agricultor}'), ('${ids.longe}');
   insert into empresas (id, papel, tipo_documento, documento, registro_rural, agricultor, nome, telefone, cidade, uf, lat, lng, raio_km) values
     ('${ids.restaurante}', 'comprador', 'cnpj', '11222333000181', null, false, 'Restaurante Sabor', '83999990001', 'João Pessoa', 'PB', -7.1195, -34.8450, 60),
-    ('${ids.atacado}', 'fornecedor', 'cnpj', '22333444000172', null, false, 'Atacado Litoral', '83999990002', 'Cabedelo', 'PB', -6.9811, -34.8339, 30),
+    ('${ids.atacado}', 'fornecedor', 'cnpj', '22333444000181', null, false, 'Atacado Litoral', '83999990002', 'Cabedelo', 'PB', -6.9811, -34.8339, 30),
     ('${ids.agricultor}', 'fornecedor', 'cpf_caf', '12345678909', 'CAF-123', true, 'Sítio Boa Vista', '83999990003', 'Sapé', 'PB', -7.0936, -35.2328, 80),
-    ('${ids.longe}', 'fornecedor', 'cnpj', '33444555000163', null, false, 'Distribuidora Serra', '83999990004', 'Campina Grande', 'PB', -7.2307, -35.8811, 200);
+    ('${ids.longe}', 'fornecedor', 'cnpj', '33444555000181', null, false, 'Distribuidora Serra', '83999990004', 'Campina Grande', 'PB', -7.2307, -35.8811, 200);
 `);
 
 async function como(uid, sql, params = []) {
@@ -310,6 +310,9 @@ assert.equal((await como(ids.longe, `select id from pedidos where id = $1`, [con
 assert.equal((await como(ids.restaurante, `select id from pedidos where id = $1`, [convite])).rows.length, 1, "dono lê o leilão");
 
 // Oferta só para clientes escolhidos.
+await falha(ids.atacado, `insert into ofertas (fornecedor_id, produto, produto_chave, categoria, unidade, preco_unitario, quantidade_disponivel, convidados)
+  values ($1, 'Arroz', 'arroz', 'graos', 'kg', 5, 100, array[$2]::uuid[])`, [ids.atacado, ids.restaurante], /seus contatos/);
+await como(ids.atacado, `insert into contatos (dono_id, contato_id, tipo) values ($1, $2, 'cliente')`, [ids.atacado, ids.restaurante]);
 const ofertaFechada = (await como(ids.atacado, `insert into ofertas (fornecedor_id, produto, produto_chave, categoria, unidade, preco_unitario, quantidade_disponivel, convidados)
   values ($1, 'Arroz', 'arroz', 'graos', 'kg', 5, 100, array[$2]::uuid[]) returning id`, [ids.atacado, ids.restaurante])).rows[0].id;
 assert.ok((await como(ids.restaurante, `select id from vitrine_ofertas('arroz')`)).rows.some((r) => r.id === ofertaFechada));
@@ -411,15 +414,15 @@ assert.equal(await pode("authenticated", "reservar_oferta(uuid, numeric)"), true
 await falha(ids.restaurante, `select devolver_estoque(r) from reservas r limit 1`, [], /permission denied/);
 
 // Avisos no celular: cada conta ativa o próprio aparelho; a tabela não fica aberta.
-await como(ids.restaurante, `select registrar_celular('https://push.exemplo/abc', 'chave', 'segredo')`);
+await como(ids.restaurante, `select registrar_celular('https://fcm.googleapis.com/fcm/send/abc', 'chave', 'segredo')`);
 assert.equal((await db.query(`select empresa_id from push_inscricoes`)).rows[0].empresa_id, ids.restaurante);
 await falha(ids.atacado, `select * from push_inscricoes`, [], /permission denied/);
-await como(ids.atacado, `select registrar_celular('https://push.exemplo/abc', 'chave', 'segredo')`);
+await como(ids.atacado, `select registrar_celular('https://fcm.googleapis.com/fcm/send/abc', 'chave', 'segredo')`);
 assert.equal((await db.query(`select empresa_id from push_inscricoes`)).rows[0].empresa_id, ids.atacado, "o aparelho passa para a conta que entrou nele");
 await falha(ids.atacado, `select registrar_celular('http://inseguro', 'a', 'b')`, [], /endereço de notificação válido/);
-await como(ids.restaurante, `select remover_celular('https://push.exemplo/abc')`);
+await como(ids.restaurante, `select remover_celular('https://fcm.googleapis.com/fcm/send/abc')`);
 assert.equal((await db.query(`select 1 from push_inscricoes`)).rows.length, 1, "não remove o aparelho de outra conta");
-await falha(ids.atacado, `select apagar_celular_expirado('chute', 'https://push.exemplo/abc')`, [], /Não autorizado/);
+await falha(ids.atacado, `select apagar_celular_expirado('chute', 'https://fcm.googleapis.com/fcm/send/abc')`, [], /Não autorizado/);
 assert.equal(await pode("authenticated", "segredo_push(text)"), false, "ninguém lê o segredo pela API");
 await db.query(`insert into avisos (empresa_id, texto, link) values ($1, 'teste', '/')`, [ids.atacado]);
 assert.equal((await db.query(`select 1 from avisos where empresa_id = $1 and texto = 'teste'`, [ids.atacado])).rows.length, 1, "sem o cofre configurado o aviso do sino continua");
@@ -445,5 +448,22 @@ const pedidoGanho = (await db.query(`select id from pedidos where lance_vencedor
 const vencedorDoPedido = (await db.query(`select l.fornecedor_id f from pedidos p join lances l on l.id = p.lance_vencedor_id where p.id = $1`, [pedidoGanho])).rows[0].f;
 await db.query(`delete from auth.users where id = $1`, [vencedorDoPedido]);
 assert.equal((await db.query(`select lance_vencedor_id from pedidos where id = $1`, [pedidoGanho])).rows[0].lance_vencedor_id, null);
+
+// Regras da tela também pela API: documento, localização, textos e push.
+await falha(ids.restaurante, `update empresas set documento = '11444777000161' where id = $1`, [ids.restaurante], /não pode ser trocado/);
+await falha(ids.restaurante, `update empresas set tipo_documento = 'cpf', documento = '12345678909' where id = $1`, [ids.restaurante], /não pode ser trocado/);
+await como(ids.restaurante, `update empresas set nome = 'Restaurante Sabor da Terra' where id = $1`, [ids.restaurante]);
+await db.exec(`insert into auth.users values ('00000000-0000-0000-0000-0000000000aa'), ('00000000-0000-0000-0000-0000000000ab')`);
+await falha("00000000-0000-0000-0000-0000000000aa", `insert into empresas (id, papel, tipo_documento, documento, nome, telefone, cidade, uf, lat, lng) values
+  ($1, 'comprador', 'cnpj', '11222333000199', 'Falso', '83999990009', 'João Pessoa', 'PB', -7.1, -34.8)`, ["00000000-0000-0000-0000-0000000000aa"], /CNPJ inválido/);
+await como("00000000-0000-0000-0000-0000000000aa", `insert into empresas (id, papel, tipo_documento, documento, agricultor, nome, telefone, cidade, uf, lat, lng) values
+  ($1, 'comprador', 'cpf', '00012345678', true, 'Teste', '83999990009', 'João Pessoa', 'PB', -7.123456, -34.876543)`, ["00000000-0000-0000-0000-0000000000aa"]);
+const teste = (await db.query(`select lat, lng, agricultor from empresas where id = '00000000-0000-0000-0000-0000000000aa'`)).rows[0];
+assert.deepEqual([teste.lat, teste.lng, teste.agricultor], [-7.12, -34.88, false], "localização com 2 casas; CPF sem CAF não é agricultor");
+await como("00000000-0000-0000-0000-0000000000aa", `update empresas set tipo_documento = 'cnpj', documento = '11444777000161' where id = $1`, ["00000000-0000-0000-0000-0000000000aa"]);
+await falha(ids.restaurante, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em)
+  values ($1, repeat('x', 121), 'x', 'graos', 'kg', 1, now() + interval '1 day')`, [ids.restaurante], /textos_tamanho/);
+await falha(ids.restaurante, `select registrar_celular('https://exemplo.com/x', 'k', 'a')`, [], /endereço de notificação/);
+await como(ids.restaurante, `select registrar_celular('https://web.push.apple.com/abc', 'k', 'a')`);
 
 console.log("Todos os testes do banco passaram.");

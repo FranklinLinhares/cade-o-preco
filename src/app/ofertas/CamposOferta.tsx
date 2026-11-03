@@ -38,7 +38,7 @@ export function CamposOferta({ valores }: { valores: ValoresOferta }) {
       </fieldset>
       <div>
         <label className="rotulo" htmlFor="produto">Produto</label>
-        <input id="produto" name="produto" required defaultValue={valores.produto} className="campo" />
+        <input id="produto" name="produto" required maxLength={120} defaultValue={valores.produto} className="campo" />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -84,7 +84,7 @@ export function CamposOferta({ valores }: { valores: ValoresOferta }) {
       </div>
       <div>
         <label className="rotulo" htmlFor="descricao">Detalhes</label>
-        <textarea id="descricao" name="descricao" rows={2} defaultValue={valores.descricao ?? ""} className="campo" />
+        <textarea id="descricao" name="descricao" rows={2} maxLength={1000} defaultValue={valores.descricao ?? ""} className="campo" />
       </div>
     </>
   );

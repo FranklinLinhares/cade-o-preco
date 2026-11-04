@@ -57,39 +57,44 @@ const RESPOSTA: Record<"aguardando" | "recusada" | "cancelada" | "expirada", { t
 // Negócios do modo atual: no Comprar só as compras, no Vender só as vendas.
 export default async function Negocios() {
   const { supabase, empresa } = await exigirEmpresa();
-  await supabase.rpc("expirar_reservas");
   const vendendo = empresa.papel === "fornecedor";
+  // Pedidos sem resposta em 2 dias expiram antes de listar; o resto sai ao mesmo tempo.
+  const expirou = Promise.resolve(supabase.rpc("expirar_reservas"));
 
-  const { data } = await supabase
-    .from("compras")
-    .select(
-      "id, produto, unidade, quantidade, preco_unitario, origem, criado_em, concluido_comprador_em, concluido_fornecedor_em, comprador:empresas!compras_comprador_id_fkey(id, nome), fornecedor:empresas!compras_fornecedor_id_fkey(id, nome)",
-    )
-    .not("fornecedor_id", "is", null)
-    .eq(vendendo ? "fornecedor_id" : "comprador_id", empresa.id)
-    .order("criado_em", { ascending: false })
-    .limit(50);
-  const comprasOcultas = await buscarOcultos(supabase, "compra");
+  const [{ data }, comprasOcultas, { data: dadosReservas }, reservasOcultas, { data: minhas }] = await Promise.all([
+    supabase
+      .from("compras")
+      .select(
+        "id, produto, unidade, quantidade, preco_unitario, origem, criado_em, concluido_comprador_em, concluido_fornecedor_em, comprador:empresas!compras_comprador_id_fkey(id, nome), fornecedor:empresas!compras_fornecedor_id_fkey(id, nome)",
+      )
+      .not("fornecedor_id", "is", null)
+      .eq(vendendo ? "fornecedor_id" : "comprador_id", empresa.id)
+      .order("criado_em", { ascending: false })
+      .limit(50),
+    buscarOcultos(supabase, "compra"),
+    // Pedidos da vitrine esperando o vendedor, e os recusados ou desistidos da última semana.
+    expirou.then(() =>
+      supabase
+        .from("reservas")
+        .select(
+          "id, produto, unidade, quantidade, preco_unitario, situacao, criado_em, comprador:empresas!reservas_comprador_id_fkey(id, nome), fornecedor:empresas!reservas_fornecedor_id_fkey(id, nome)",
+        )
+        .or(`situacao.eq.aguardando,respondido_em.gte.${haSeteDias()}`)
+        .neq("situacao", "aceita")
+        .order("criado_em", { ascending: false })
+        .returns<Reserva[]>(),
+    ),
+    buscarOcultos(supabase, "reserva"),
+    supabase.from("avaliacoes").select("compra_id, nota").eq("avaliador_id", empresa.id),
+  ]);
   const negocios = ((data ?? []) as unknown as Negocio[]).filter((n) => !comprasOcultas.has(n.id));
   const telefones = await buscarTelefones(supabase, negocios.flatMap((n) => [n.comprador?.id, n.fornecedor?.id]));
 
-  // Pedidos da vitrine esperando o vendedor, e os recusados ou desistidos da última semana.
-  const { data: dadosReservas } = await supabase
-    .from("reservas")
-    .select(
-      "id, produto, unidade, quantidade, preco_unitario, situacao, criado_em, comprador:empresas!reservas_comprador_id_fkey(id, nome), fornecedor:empresas!reservas_fornecedor_id_fkey(id, nome)",
-    )
-    .or(`situacao.eq.aguardando,respondido_em.gte.${haSeteDias()}`)
-    .neq("situacao", "aceita")
-    .order("criado_em", { ascending: false })
-    .returns<Reserva[]>();
-  const reservasOcultas = await buscarOcultos(supabase, "reserva");
   const reservas = (dadosReservas ?? []).filter((r) => !reservasOcultas.has(r.id));
   const pedidosRecebidos = reservas.filter((r) => r.situacao === "aguardando" && r.fornecedor?.id === empresa.id);
   const paraResponder = vendendo ? pedidosRecebidos : [];
   const meusPedidos = vendendo ? [] : reservas.filter((r) => r.comprador?.id === empresa.id);
 
-  const { data: minhas } = await supabase.from("avaliacoes").select("compra_id, nota").eq("avaliador_id", empresa.id);
   const notaDada = new Map((minhas ?? []).map((a) => [a.compra_id as string, a.nota as number]));
 
   return (

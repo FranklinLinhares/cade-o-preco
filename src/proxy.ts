@@ -38,12 +38,18 @@ export async function proxy(request: NextRequest) {
     },
   );
 
+  // Lê a sessão do próprio cookie, sem ir ao servidor de login (só renova quando o
+  // token venceu). O proxy roda perto do usuário, no Brasil, e cada ida ao Supabase
+  // (nos EUA) custava uns 300 ms em toda troca de tela. Aqui só decide para onde
+  // mandar; quem protege os dados é o banco, que confere o token em cada consulta.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = Boolean(session);
 
-  // Já logado não precisa da tela de entrar.
-  if (user && request.nextUrl.pathname === "/entrar") {
+  // Já logado não precisa da tela de entrar. Aqui confere o login de verdade
+  // (tela rara), para um cookie de conta apagada não ficar indo e voltando.
+  if (user && request.nextUrl.pathname === "/entrar" && (await supabase.auth.getUser()).data.user) {
     const url = request.nextUrl.clone();
     url.pathname = "/vitrine";
     url.search = "";

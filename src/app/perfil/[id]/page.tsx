@@ -30,20 +30,23 @@ export default async function PerfilPublico({ params }: PageProps<"/perfil/[id]"
   const { supabase, empresa } = await exigirEmpresa();
   const meuPerfil = empresa.id === id;
 
-  const { data: perfil } = await supabase
-    .from("empresas")
-    .select("id, nome, tipo_documento, agricultor, cidade, uf, criado_em")
-    .eq("id", id)
-    .maybeSingle<Perfil>();
+  // As três buscas não dependem uma da outra: saem ao mesmo tempo.
+  const [{ data: perfil }, reputacoes, { data }] = await Promise.all([
+    supabase
+      .from("empresas")
+      .select("id, nome, tipo_documento, agricultor, cidade, uf, criado_em")
+      .eq("id", id)
+      .maybeSingle<Perfil>(),
+    buscarReputacao(supabase, [id]),
+    supabase
+      .from("avaliacoes")
+      .select("id, nota, comentario, avaliado_como, criado_em, avaliador:empresas!avaliacoes_avaliador_id_fkey(nome)")
+      .eq("avaliado_id", id)
+      .order("criado_em", { ascending: false })
+      .limit(20),
+  ]);
   if (!perfil) notFound();
-
-  const reputacao = (await buscarReputacao(supabase, [id])).get(id);
-  const { data } = await supabase
-    .from("avaliacoes")
-    .select("id, nota, comentario, avaliado_como, criado_em, avaliador:empresas!avaliacoes_avaliador_id_fkey(nome)")
-    .eq("avaliado_id", id)
-    .order("criado_em", { ascending: false })
-    .limit(20);
+  const reputacao = reputacoes.get(id);
   const avaliacoes = (data ?? []) as unknown as Avaliacao[];
 
   return (

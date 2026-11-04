@@ -25,21 +25,21 @@ type Oferta = {
 
 export default async function MinhasOfertas() {
   const { supabase, empresa } = await exigirEmpresa();
-  await supabase.rpc("expirar_reservas"); // pedidos sem resposta em 2 dias devolvem o estoque
-
-  const { data } = await supabase
-    .from("ofertas")
-    .select("*, compras(quantidade, data, comprador_id, comprador:empresas!compras_comprador_id_fkey(nome))")
-    .eq("fornecedor_id", empresa.id)
-    .order("criado_em", { ascending: false })
-    .returns<Oferta[]>();
+  // Pedidos sem resposta em 2 dias devolvem o estoque; as buscas esperam por isso, juntas.
+  const expirou = Promise.resolve(supabase.rpc("expirar_reservas"));
+  const [{ data }, { data: dadosPedidos }] = await Promise.all([
+    expirou.then(() =>
+      supabase
+        .from("ofertas")
+        .select("*, compras(quantidade, data, comprador_id, comprador:empresas!compras_comprador_id_fkey(nome))")
+        .eq("fornecedor_id", empresa.id)
+        .order("criado_em", { ascending: false })
+        .returns<Oferta[]>(),
+    ),
+    // Pedidos da vitrine que ainda esperam a sua resposta, por oferta.
+    expirou.then(() => supabase.from("reservas").select("oferta_id, quantidade").eq("fornecedor_id", empresa.id).eq("situacao", "aguardando")),
+  ]);
   const ofertas = data ?? [];
-  // Pedidos da vitrine que ainda esperam a sua resposta, por oferta.
-  const { data: dadosPedidos } = await supabase
-    .from("reservas")
-    .select("oferta_id, quantidade")
-    .eq("fornecedor_id", empresa.id)
-    .eq("situacao", "aguardando");
   const pedidos = new Map<string, { n: number; quantidade: number }>();
   for (const r of dadosPedidos ?? []) {
     if (!r.oferta_id) continue;
@@ -47,18 +47,19 @@ export default async function MinhasOfertas() {
     pedidos.set(r.oferta_id, { n: atual.n + 1, quantidade: atual.quantidade + Number(r.quantidade) });
   }
 
-  const telefones = await buscarTelefones(supabase, ofertas.flatMap((o) => o.compras.map((c) => c.comprador_id)));
-
-  // Para cada produto, quantos compradores próximos têm pedido aberto.
+  // WhatsApp de quem comprou e, para cada produto, quantos compradores próximos têm
+  // leilão aberto: buscas independentes, feitas ao mesmo tempo.
   const chaves = [...new Set(ofertas.filter((o) => o.ativa).map((o) => o.produto_chave))];
-  const interessados = Object.fromEntries(
-    await Promise.all(
+  const [telefones, contagens] = await Promise.all([
+    buscarTelefones(supabase, ofertas.flatMap((o) => o.compras.map((c) => c.comprador_id))),
+    Promise.all(
       chaves.map(async (chave) => {
         const { data: n } = await supabase.rpc("compradores_interessados", { chave });
         return [chave, Number(n ?? 0)] as const;
       }),
     ),
-  );
+  ]);
+  const interessados = Object.fromEntries(contagens);
 
   return (
     <div className="space-y-4">

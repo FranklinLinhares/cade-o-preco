@@ -3,7 +3,7 @@ import { Geist } from "next/font/google";
 import Link from "next/link";
 import { Suspense } from "react";
 import "./globals.css";
-import { criarClienteServidor } from "@/lib/supabase/server";
+import { contaAtual, usuarioAtual } from "@/lib/sessao";
 import { sair } from "@/app/entrar/acoes";
 import { trocarModo } from "@/app/cadastro/modo";
 import { Navegacao, type ItemMenu } from "@/components/Navegacao";
@@ -49,20 +49,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 // Links conforme o modo (comprar ou vender) de quem está logado.
 async function Menu() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null;
-  const supabase = await criarClienteServidor();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: empresa } = user
-    ? await supabase.from("empresas").select("id, papel, nome").eq("id", user.id).maybeSingle()
-    : { data: null };
-  // Pedidos da vitrine esperando a resposta desta conta como vendedora.
-  const { count: aResponder } = empresa
-    ? await supabase.from("reservas").select("id", { count: "exact", head: true }).eq("fornecedor_id", empresa.id).eq("situacao", "aguardando")
-    : { count: 0 };
-  const { count: naoLidos } = empresa
-    ? await supabase.from("avisos").select("id", { count: "exact", head: true }).eq("empresa_id", empresa.id).eq("lido", false)
-    : { count: 0 };
+  const { supabase, empresa } = await contaAtual();
+  // Sem cadastro: só precisa saber se há login, para mostrar "Entrar" ou "Sair".
+  const user = empresa ? true : await usuarioAtual();
+  // Pedidos da vitrine esperando a resposta desta conta como vendedora, e avisos não lidos.
+  const [{ count: aResponder }, { count: naoLidos }] = empresa
+    ? await Promise.all([
+        supabase.from("reservas").select("id", { count: "exact", head: true }).eq("fornecedor_id", empresa.id).eq("situacao", "aguardando"),
+        supabase.from("avisos").select("id", { count: "exact", head: true }).eq("empresa_id", empresa.id).eq("lido", false),
+      ])
+    : [{ count: 0 }, { count: 0 }];
 
   const itens: ItemMenu[] = empresa
     ? [

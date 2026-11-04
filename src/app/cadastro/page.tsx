@@ -1,15 +1,11 @@
 import { redirect } from "next/navigation";
-import { criarClienteServidor } from "@/lib/supabase/server";
-import type { Empresa } from "@/lib/dominio";
+import { contaAtual, usuarioAtual } from "@/lib/sessao";
 import { FormularioEmpresa } from "./formulario";
 
 export default async function Cadastro() {
-  const supabase = await criarClienteServidor();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Mesmas buscas do menu do topo, feitas uma vez só e ao mesmo tempo.
+  const [user, { empresa }] = await Promise.all([usuarioAtual(), contaAtual()]);
   if (!user) redirect("/entrar");
-  const { data: empresa } = await supabase.rpc("minha_empresa").maybeSingle<Empresa>();
 
   return (
     <div className="mx-auto max-w-xl space-y-4">

@@ -26,14 +26,15 @@ export default async function Historico() {
   const { supabase, empresa } = await exigirEmpresa();
   if (empresa.papel !== "comprador") redirect("/ofertas");
 
-  const { data } = await supabase
-    .from("historico_semanal")
-    .select("*")
-    .eq("comprador_id", empresa.id)
-    .gte("semana", dozeSemanasAtras())
-    .order("semana", { ascending: false });
-
-  const ocultos = await buscarOcultos(supabase, "historico");
+  const [{ data }, ocultos] = await Promise.all([
+    supabase
+      .from("historico_semanal")
+      .select("*")
+      .eq("comprador_id", empresa.id)
+      .gte("semana", dozeSemanasAtras())
+      .order("semana", { ascending: false }),
+    buscarOcultos(supabase, "historico"),
+  ]);
   const porProduto = new Map<string, Semana[]>();
   for (const s of (data ?? []) as Semana[]) {
     const chave = `${s.produto_chave}|${s.unidade}`;

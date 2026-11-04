@@ -45,23 +45,28 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
   const { supabase, empresa } = await exigirEmpresa();
   // A Vitrine é para comprar; no modo Vender a pessoa vai para as próprias ofertas.
   if (empresa.papel !== "comprador") redirect("/ofertas");
-  await supabase.rpc("expirar_reservas"); // pedidos sem resposta em 2 dias devolvem o estoque
-
-  const { data } = await supabase.rpc("vitrine_ofertas", { termo: termo || null });
+  // Pedidos sem resposta em 2 dias devolvem o estoque; as buscas que dependem disso
+  // esperam por ele, as outras saem ao mesmo tempo.
+  const expirou = Promise.resolve(supabase.rpc("expirar_reservas"));
+  const [{ data }, ocultas, { data: dadosPedidos }] = await Promise.all([
+    expirou.then(() => supabase.rpc("vitrine_ofertas", { termo: termo || null })),
+    buscarOcultos(supabase, "oferta"),
+    // Ofertas em que você já fez pedido: aguardando o vendedor ou já aceito.
+    expirou.then(() =>
+      supabase
+        .from("reservas")
+        .select("oferta_id, quantidade, situacao")
+        .eq("comprador_id", empresa.id)
+        .in("situacao", ["aguardando", "aceita"]),
+    ),
+  ]);
   // As próprias ofertas ficam em Minhas ofertas; a vitrine mostra só as de outras pessoas.
-  const ocultas = await buscarOcultos(supabase, "oferta");
   const ofertas = ((data ?? []) as Oferta[]).filter(
     (o) => o.fornecedor_id !== empresa.id && !ocultas.has(o.id) && (origem === "todos" || o.fornecedor_pj === (origem === "pj")) &&
       (modo === "todos" || o.so_na_loja === (modo === "loja")),
   );
   const reputacao = await buscarReputacao(supabase, ofertas.map((o) => o.fornecedor_id));
 
-  // Ofertas em que você já fez pedido: aguardando o vendedor ou já aceito.
-  const { data: dadosPedidos } = await supabase
-    .from("reservas")
-    .select("oferta_id, quantidade, situacao")
-    .eq("comprador_id", empresa.id)
-    .in("situacao", ["aguardando", "aceita"]);
   const meusPedidos = new Map<string, { aguardando: number; aceita: number }>();
   for (const r of dadosPedidos ?? []) {
     if (!r.oferta_id) continue;

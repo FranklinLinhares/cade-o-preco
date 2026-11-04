@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { criarClienteServidor } from "@/lib/supabase/server";
+import { contaAtual, usuarioAtual } from "@/lib/sessao";
 
 const RECURSOS = [
   {
@@ -28,7 +28,8 @@ const PASSOS = [
 export default async function Inicio() {
   // Quem já entrou vai direto para o app, sem passar de novo pela tela de entrar.
   const configurado = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const user = configurado ? (await (await criarClienteServidor()).auth.getUser()).data.user : null;
+  // Com cadastro já basta a busca que o menu do topo faz; sem cadastro, confere o login.
+  const user = configurado ? (await contaAtual()).empresa ?? (await usuarioAtual()) : null;
   return (
     <div className="space-y-10 py-2">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-700 via-green-800 to-emerald-950 px-6 py-10 text-white shadow-lg sm:px-10 sm:py-14">

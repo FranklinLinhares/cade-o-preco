@@ -41,22 +41,22 @@ export default async function Pedidos() {
 
   // Modo Vender: só leilões de outros compradores, para dar lance.
   // Modo Comprar: só os leilões que a conta criou.
-  let paraLance: Linha[] = [];
-  let meusLeiloes: Linha[] = [];
-  if (vendendo) {
-    const { data: proximos } = await supabase.rpc("pedidos_proximos");
-    paraLance = (proximos ?? []) as Linha[];
-  } else {
+  const buscarLeiloes = async (): Promise<Linha[]> => {
+    if (vendendo) {
+      const { data: proximos } = await supabase.rpc("pedidos_proximos");
+      return (proximos ?? []) as Linha[];
+    }
     const { data: meus, error: erroMeus } = await supabase
       .from("pedidos")
       .select("id, produto, categoria, unidade, quantidade, encerra_em, status, lances_visiveis, lance_vencedor_id, lances!lances_pedido_id_fkey(count)")
       .eq("comprador_id", empresa.id)
       .order("criado_em", { ascending: false });
     if (erroMeus) throw new Error(erroMeus.message);
-    meusLeiloes = (meus ?? []).map((p) => ({ ...p, total_lances: (p.lances as { count: number }[])[0]?.count ?? 0 })) as Linha[];
-  }
-
-  const ocultos = await buscarOcultos(supabase, "pedido");
+    return (meus ?? []).map((p) => ({ ...p, total_lances: (p.lances as { count: number }[])[0]?.count ?? 0 })) as Linha[];
+  };
+  const [leiloes, ocultos] = await Promise.all([buscarLeiloes(), buscarOcultos(supabase, "pedido")]);
+  let paraLance = vendendo ? leiloes : [];
+  let meusLeiloes = vendendo ? [] : leiloes;
   paraLance = paraLance.filter((p) => !ocultos.has(p.id));
   meusLeiloes = meusLeiloes.filter((p) => !ocultos.has(p.id));
 

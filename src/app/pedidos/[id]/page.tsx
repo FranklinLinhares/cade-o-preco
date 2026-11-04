@@ -57,25 +57,23 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
     .maybeSingle<Pedido>();
   if (!pedido) notFound();
 
-  // A política de segurança já filtra os lances conforme a visibilidade escolhida.
-  const { data } = await supabase
-    .from("lances")
-    .select("*, fornecedor:empresas!lances_fornecedor_id_fkey(nome, cidade, agricultor)")
-    .eq("pedido_id", id)
-    .order("preco_unitario")
-    .order("criado_em");
+  // Lances e ofertas do mesmo produto não dependem um do outro: saem ao mesmo tempo.
+  const [{ data }, { data: ofertas }] = await Promise.all([
+    // A política de segurança já filtra os lances conforme a visibilidade escolhida.
+    supabase
+      .from("lances")
+      .select("*, fornecedor:empresas!lances_fornecedor_id_fkey(nome, cidade, agricultor)")
+      .eq("pedido_id", id)
+      .order("preco_unitario")
+      .order("criado_em"),
+    // Escudo de preço: ofertas do mesmo produto na vitrine perto de quem vê a página.
+    supabase.rpc("vitrine_ofertas", { termo: pedido.produto_chave }),
+  ]);
   const lances = (data ?? []) as Lance[];
-
-  // Escudo de preço: ofertas do mesmo produto na vitrine perto de quem vê a página.
-  const { data: ofertas } = await supabase.rpc("vitrine_ofertas", { termo: pedido.produto_chave });
   const precosOfertas = ((ofertas ?? []) as { produto_chave: string; unidade: Unidade; preco_unitario: number }[])
     .filter((o) => o.produto_chave === pedido.produto_chave && o.unidade === pedido.unidade)
     .map((o) => Number(o.preco_unitario));
   const mercado = mediaParaPedido(precosOfertas, pedido.referencia_preco, pedido.unidade);
-  const reputacao = await buscarReputacao(supabase, [pedido.comprador_id, ...lances.map((l) => l.fornecedor_id)]);
-  const repComprador = reputacao.get(pedido.comprador_id);
-
-
   const souComprador = pedido.comprador_id === empresa.id;
   // Leilão só para convidados: quem não está na lista vê o leilão, mas não pode dar lance.
   const possoDarLance = !pedido.convidados || pedido.convidados.includes(empresa.id);
@@ -83,28 +81,32 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
   const aberto = pedido.status === "aberto" && new Date(pedido.encerra_em) > new Date();
   const vencedor = lances.find((l) => l.id === pedido.lance_vencedor_id);
   const souVencedor = vencedor?.fornecedor_id === empresa.id;
-  // O WhatsApp da outra parte só aparece depois do negócio fechado.
-  const telefones = await buscarTelefones(supabase, vencedor ? [vencedor.fornecedor_id, pedido.comprador_id] : []);
-  // Negócio fechado: comprador e vencedor avaliam um ao outro ali mesmo.
-  let compraFechada: EstadoConclusao | null = null;
-  let notaDada: number | undefined;
-  if (pedido.status === "fechado" && (souComprador || souVencedor)) {
-    const { data: compra } = await supabase
-      .from("compras")
-      .select("id, concluido_comprador_em, concluido_fornecedor_em")
-      .eq("pedido_id", id)
-      .maybeSingle<EstadoConclusao>();
-    compraFechada = compra ?? null;
-    if (compraFechada) {
+
+  // Reputação, WhatsApp e o negócio fechado: buscas independentes, ao mesmo tempo.
+  const [reputacao, telefones, conclusao] = await Promise.all([
+    buscarReputacao(supabase, [pedido.comprador_id, ...lances.map((l) => l.fornecedor_id)]),
+    // O WhatsApp da outra parte só aparece depois do negócio fechado.
+    buscarTelefones(supabase, vencedor ? [vencedor.fornecedor_id, pedido.comprador_id] : []),
+    // Negócio fechado: comprador e vencedor avaliam um ao outro ali mesmo.
+    (async () => {
+      if (pedido.status !== "fechado" || !(souComprador || souVencedor)) return { compraFechada: null, notaDada: undefined };
+      const { data: compra } = await supabase
+        .from("compras")
+        .select("id, concluido_comprador_em, concluido_fornecedor_em")
+        .eq("pedido_id", id)
+        .maybeSingle<EstadoConclusao>();
+      if (!compra) return { compraFechada: null, notaDada: undefined };
       const { data: minha } = await supabase
         .from("avaliacoes")
         .select("nota")
-        .eq("compra_id", compraFechada.id)
+        .eq("compra_id", compra.id)
         .eq("avaliador_id", empresa.id)
         .maybeSingle();
-      notaDada = (minha?.nota as number | undefined) ?? undefined;
-    }
-  }
+      return { compraFechada: compra, notaDada: (minha?.nota as number | undefined) ?? undefined };
+    })(),
+  ]);
+  const repComprador = reputacao.get(pedido.comprador_id);
+  const { compraFechada, notaDada } = conclusao as { compraFechada: EstadoConclusao | null; notaDada: number | undefined };
 
   const meuMenor = lances.filter((l) => l.fornecedor_id === empresa.id).at(0);
   const menor = lances.at(0);

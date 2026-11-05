@@ -27,6 +27,12 @@ export default async function ConfirmarVencedor({ params, searchParams }: PagePr
     .maybeSingle<{ id: string; fornecedor_id: string; preco_unitario: number; validade: string | null; observacao: string | null }>();
   if (!lance) notFound();
 
+  // Leilão em grupo: o preço vale para todos, e cada participante ganha a sua compra.
+  const { data: resumo } = await supabase.rpc("resumo_grupos", { p_ids: [id] });
+  const grupo = ((resumo ?? []) as { participantes: number; quantidade_total: number }[])[0];
+  const pessoas = grupo ? Number(grupo.participantes) : 0;
+  const total = grupo ? Number(grupo.quantidade_total) : Number(pedido.quantidade);
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Link href={`/pedidos/${id}`} className="text-sm text-stone-500 hover:underline">← Voltar para o leilão</Link>
@@ -37,13 +43,18 @@ export default async function ConfirmarVencedor({ params, searchParams }: PagePr
           {pedido.quantidade} {pedido.unidade} a {porUnidade(lance.preco_unitario, pedido.unidade)} · total{" "}
           <strong>{reais(Number(lance.preco_unitario) * Number(pedido.quantidade))}</strong>
         </p>
+        {pessoas > 0 && (
+          <p className="text-sm">
+            Leilão em grupo: mais {pessoas} pessoa{pessoas > 1 ? "s" : ""}, total de {total} {pedido.unidade} ({reais(Number(lance.preco_unitario) * total)}). Cada uma compra a sua parte neste preço.
+          </p>
+        )}
         {lance.validade && <p className="text-sm text-stone-500">Validade garantida até {new Date(lance.validade).toLocaleDateString("pt-BR")}</p>}
         {lance.observacao && <p className="text-sm">{lance.observacao}</p>}
       </div>
       <CartaoParte supabase={supabase} id={lance.fornecedor_id} como="vendedor" />
       <div className="cartao space-y-2">
         <p className="text-sm text-stone-600">
-          Ao confirmar, o leilão fecha com este fornecedor, a compra entra no seu histórico e vocês combinam a entrega pelo WhatsApp. Não dá para desfazer.
+          Ao confirmar, o leilão fecha com este fornecedor, a compra entra no seu histórico e vocês combinam a entrega pelo WhatsApp.{pessoas > 0 && " As outras pessoas do grupo são avisadas e combinam a parte delas."} Não dá para desfazer.
         </p>
         <form action={escolherVencedor} className="flex flex-wrap gap-2">
           <input type="hidden" name="pedido" value={id} />

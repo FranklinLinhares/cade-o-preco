@@ -466,4 +466,66 @@ await falha(ids.restaurante, `insert into pedidos (comprador_id, produto, produt
 await falha(ids.restaurante, `select registrar_celular('https://exemplo.com/x', 'k', 'a')`, [], /endereço de notificação/);
 await como(ids.restaurante, `select registrar_celular('https://web.push.apple.com/abc', 'k', 'a')`);
 
+// Leilão em grupo: vizinhos a até 5 km entram, o vendedor vê o total e cada um ganha a sua compra.
+const g = {
+  dona: "00000000-0000-0000-0000-0000000000c1",    // João Pessoa
+  vizinho: "00000000-0000-0000-0000-0000000000c2", // ~1 km
+  longe: "00000000-0000-0000-0000-0000000000c3",   // Cabedelo, ~15 km
+  vendedor: "00000000-0000-0000-0000-0000000000c4",
+};
+await db.exec(`
+  insert into auth.users values ('${g.dona}'), ('${g.vizinho}'), ('${g.longe}'), ('${g.vendedor}');
+  insert into empresas (id, papel, tipo_documento, documento, nome, telefone, cidade, uf, lat, lng, raio_km) values
+    ('${g.dona}', 'comprador', 'cpf', '00090000001', 'Maria', '83999990011', 'João Pessoa', 'PB', -7.12, -34.85, 30),
+    ('${g.vizinho}', 'comprador', 'cpf', '00090000002', 'José', '83999990012', 'João Pessoa', 'PB', -7.13, -34.85, 30),
+    ('${g.longe}', 'comprador', 'cpf', '00090000003', 'Ana', '83999990013', 'Cabedelo', 'PB', -6.98, -34.83, 30),
+    ('${g.vendedor}', 'fornecedor', 'cpf', '00090000004', 'Mercadinho', '83999990014', 'João Pessoa', 'PB', -7.12, -34.86, 30);
+`);
+const grupo = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
+  values ($1, 'Arroz tipo 1', 'arroz-tipo-1', 'graos', 'kg', 10, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
+assert.ok((await como(g.vizinho, `select id from grupos_proximos()`)).rows.some((r) => r.id === grupo), "vizinho vê o grupo");
+assert.ok(!(await como(g.longe, `select id from grupos_proximos()`)).rows.some((r) => r.id === grupo), "quem está longe não vê");
+await falha(g.longe, `select entrar_no_grupo($1, 5)`, [grupo], /até 5 km/);
+await falha(g.vizinho, `select entrar_no_grupo($1, 25)`, [grupo], /no máximo 20/);
+await falha(g.dona, `select entrar_no_grupo($1, 5)`, [grupo], /criou este leilão/);
+await como(g.vizinho, `select entrar_no_grupo($1, 15)`, [grupo]);
+await falha(g.vizinho, `insert into pedido_participantes (pedido_id, comprador_id, quantidade) values ($1, $2, 1)`, [grupo, g.vizinho], /permission denied/);
+assert.ok((await avisos(g.dona)).some((t) => t.includes("José entrou")), "quem criou sabe que alguém entrou");
+const vendedorVe = (await como(g.vendedor, `select quantidade, participantes from pedidos_proximos() where id = $1`, [grupo])).rows[0];
+assert.equal(Number(vendedorVe.quantidade), 25, "vendedor vê o total do grupo");
+assert.equal(Number(vendedorVe.participantes), 1);
+assert.equal((await como(g.vendedor, `select * from pedido_participantes`)).rows.length, 0, "vendedor não vê quem está no grupo");
+assert.equal((await como(g.dona, `select * from pedido_participantes where pedido_id = $1`, [grupo])).rows.length, 1, "quem criou vê o grupo");
+// Sair é livre antes do primeiro lance; depois, só até 2 horas antes do fim.
+await como(g.vizinho, `select sair_do_grupo($1)`, [grupo]);
+await como(g.vizinho, `select entrar_no_grupo($1, 15)`, [grupo]);
+await como(g.vendedor, `select dar_lance($1, 5.5)`, [grupo]);
+await falha(g.vizinho, `select dar_lance($1, 5)`, [grupo], /Apenas fornecedores|está no grupo/);
+assert.equal((await como(g.vizinho, `select * from lances where pedido_id = $1`, [grupo])).rows.length, 1, "participante vê os lances");
+await db.query(`update pedidos set encerra_em = now() + interval '1 hour' where id = $1`, [grupo]);
+await falha(g.vizinho, `select sair_do_grupo($1)`, [grupo], /menos de 2 horas/);
+await falha(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo], /menos de 2 horas/);
+await como(g.vizinho, `select entrar_no_grupo($1, 18)`, [grupo]); // aumentar pode
+// Com participante e lance, quem criou não cancela mais.
+await como(g.dona, `update pedidos set status = 'cancelado' where id = $1`, [grupo]);
+assert.equal((await db.query(`select status from pedidos where id = $1`, [grupo])).rows[0].status, "aberto");
+// Fechar cria uma compra para cada um, no mesmo preço, e avisa o participante.
+const lanceGrupo = (await db.query(`select id from lances where pedido_id = $1`, [grupo])).rows[0].id;
+await como(g.dona, `select fechar_pedido($1, $2)`, [grupo, lanceGrupo]);
+const comprasGrupo = (await db.query(`select comprador_id, quantidade, preco_unitario from compras where pedido_id = $1 order by quantidade`, [grupo])).rows;
+assert.deepEqual(comprasGrupo.map((c) => [c.comprador_id, Number(c.quantidade), Number(c.preco_unitario)]), [[g.dona, 10, 5.5], [g.vizinho, 18, 5.5]]);
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("fechou com Mercadinho")), "participante sabe do fechamento");
+assert.equal((await como(g.vendedor, `select * from telefones_de_negocio($1)`, [[g.vizinho]])).rows.length, 1, "vendedor vê o WhatsApp do participante");
+// Grupo sem lance: quem criou cancela e o participante é avisado.
+const grupo2 = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
+  values ($1, 'Feijão', 'feijao', 'graos', 'kg', 5, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
+await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo2]);
+await como(g.dona, `update pedidos set status = 'cancelado' where id = $1`, [grupo2]);
+assert.equal((await db.query(`select status from pedidos where id = $1`, [grupo2])).rows[0].status, "cancelado");
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("Feijão foi cancelado")));
+// Leilão comum não aceita gente.
+const comum = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em)
+  values ($1, 'Açúcar', 'acucar', 'graos', 'kg', 5, now() + interval '1 day') returning id`, [g.dona])).rows[0].id;
+await falha(g.vizinho, `select entrar_no_grupo($1, 5)`, [comum], /não aceita/);
+
 console.log("Todos os testes do banco passaram.");

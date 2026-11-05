@@ -22,6 +22,22 @@ type Linha = {
   total_lances?: number;
   lances_visiveis: boolean;
   lance_vencedor_id?: string | null;
+  aceita_participantes?: boolean;
+  participantes?: number;
+};
+
+type GrupoPerto = {
+  id: string;
+  comprador_nome: string;
+  cidade: string;
+  distancia_km: number;
+  produto: string;
+  unidade: Unidade;
+  quantidade_total: number;
+  participantes: number;
+  encerra_em: string;
+  total_lances: number;
+  minha_quantidade: number | null;
 };
 
 type LanceResumo = {
@@ -48,13 +64,28 @@ export default async function Pedidos() {
     }
     const { data: meus, error: erroMeus } = await supabase
       .from("pedidos")
-      .select("id, produto, categoria, unidade, quantidade, encerra_em, status, lances_visiveis, lance_vencedor_id, lances!lances_pedido_id_fkey(count)")
+      .select("id, produto, categoria, unidade, quantidade, encerra_em, status, lances_visiveis, lance_vencedor_id, aceita_participantes, lances!lances_pedido_id_fkey(count)")
       .eq("comprador_id", empresa.id)
       .order("criado_em", { ascending: false });
     if (erroMeus) throw new Error(erroMeus.message);
-    return (meus ?? []).map((p) => ({ ...p, total_lances: (p.lances as { count: number }[])[0]?.count ?? 0 })) as Linha[];
+    // Leilões em grupo: a quantidade mostrada é a do grupo inteiro.
+    const emGrupo = (meus ?? []).filter((p) => p.aceita_participantes).map((p) => p.id);
+    const { data: resumo } = emGrupo.length ? await supabase.rpc("resumo_grupos", { p_ids: emGrupo }) : { data: [] };
+    const grupos = new Map(((resumo ?? []) as { pedido_id: string; participantes: number; quantidade_total: number }[]).map((r) => [r.pedido_id, r]));
+    return (meus ?? []).map((p) => ({
+      ...p,
+      quantidade: grupos.get(p.id)?.quantidade_total ?? p.quantidade,
+      participantes: Number(grupos.get(p.id)?.participantes ?? 0),
+      total_lances: (p.lances as { count: number }[])[0]?.count ?? 0,
+    })) as Linha[];
   };
-  const [leiloes, ocultos] = await Promise.all([buscarLeiloes(), buscarOcultos(supabase, "pedido")]);
+  // Modo Comprar: leilões em grupo de vizinhos (até 5 km) para entrar com a sua quantidade.
+  const buscarGrupos = async (): Promise<GrupoPerto[]> => {
+    if (vendendo) return [];
+    const { data } = await supabase.rpc("grupos_proximos");
+    return (data ?? []) as GrupoPerto[];
+  };
+  const [leiloes, ocultos, gruposPerto] = await Promise.all([buscarLeiloes(), buscarOcultos(supabase, "pedido"), buscarGrupos()]);
   let paraLance = vendendo ? leiloes : [];
   let meusLeiloes = vendendo ? [] : leiloes;
   paraLance = paraLance.filter((p) => !ocultos.has(p.id));
@@ -111,6 +142,7 @@ export default async function Pedidos() {
         ) : (
           <>
             <p className="text-sm text-stone-500">Crie um leilão e os fornecedores próximos disputam pelo menor preço. Para dar lances em leilões de outras pessoas, mude para Vender no menu.</p>
+            {gruposPerto.length > 0 && <GruposPerto grupos={gruposPerto} />}
             {meusLeiloes.length === 0 && <p className="text-stone-600">Você ainda não criou leilões.</p>}
             <BarraSelecao id="excluir-leiloes" acao={excluirLeiloes} confirmar="Excluir {n} leilão(ões)? Os que ainda estão abertos são cancelados e os fornecedores não podem mais dar lance." />
             <PorCategoria pedidos={meusLeiloes} vendendo={false} lances={lances} eu={empresa.id} />
@@ -199,6 +231,7 @@ function ListaLeiloes({ pedidos, vendendo, lances, eu }: { pedidos: Linha[]; ven
                     <div className="text-lg font-semibold">{p.produto} · {p.quantidade} {p.unidade}</div>
                     <div className="text-sm text-stone-500">
                       {CATEGORIAS[p.categoria]}
+                      {p.aceita_participantes && <> · <span className="font-medium text-violet-800">Em grupo{p.participantes ? ` · ${p.participantes + 1} pessoas` : ""}</span></>}
                       {p.comprador_nome && <> · {p.comprador_nome}, {p.cidade} (até {p.distancia_km} km)</>}
                       {" · "}{p.total_lances ?? 0} lance(s)
                     </div>
@@ -234,5 +267,32 @@ function ListaLeiloes({ pedidos, vendendo, lances, eu }: { pedidos: Linha[]; ven
         );
       })}
     </ul>
+  );
+}
+
+// Leilões em grupo de vizinhos: entra com a sua quantidade e compra no preço que o grupo conseguir.
+function GruposPerto({ grupos }: { grupos: GrupoPerto[] }) {
+  return (
+    <div className="cartao space-y-2 border-violet-300 bg-violet-50">
+      <h2 className="font-semibold">Leilões em grupo perto de você</h2>
+      <p className="text-sm text-stone-600">Vizinhos a até 5 km estão juntando pedidos. Entre com a sua quantidade: com mais volume, o preço tende a cair.</p>
+      <ul className="divide-y divide-violet-200">
+        {grupos.map((g) => (
+          <li key={g.id}>
+            <Link href={`/pedidos/${g.id}`} className="flex flex-wrap items-baseline justify-between gap-2 py-2 hover:text-green-800">
+              <span>
+                <span className="font-semibold">{g.produto}</span> · {g.quantidade_total} {g.unidade} juntando {g.participantes + 1} pessoa{g.participantes ? "s" : ""}
+                <span className="block text-sm text-stone-500">
+                  Criado por {g.comprador_nome}, {g.cidade} (até {g.distancia_km} km) · {g.total_lances} lance(s) · encerra {dataHora(g.encerra_em)}
+                </span>
+              </span>
+              <span className={g.minha_quantidade != null ? "text-sm font-medium text-violet-800" : "botao py-1 text-sm"}>
+                {g.minha_quantidade != null ? `Você está com ${g.minha_quantidade} ${g.unidade}` : "Quero também"}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

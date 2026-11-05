@@ -45,7 +45,7 @@ export default async function ConfirmarVencedor({ params, searchParams }: PagePr
         </p>
         {pessoas > 0 && (
           <p className="text-sm">
-            Leilão em grupo: mais {pessoas} pessoa{pessoas > 1 ? "s" : ""}, total de {total} {pedido.unidade} ({reais(Number(lance.preco_unitario) * total)}). Cada uma compra a sua parte neste preço.
+            Leilão em grupo: mais {pessoas} pessoa{pessoas > 1 ? "s" : ""}, total de {total} {pedido.unidade} ({reais(Number(lance.preco_unitario) * total)}). Se o fornecedor aceitar, cada uma compra a sua parte neste preço.
           </p>
         )}
         {lance.validade && <p className="text-sm text-stone-500">Validade garantida até {new Date(lance.validade).toLocaleDateString("pt-BR")}</p>}
@@ -54,7 +54,7 @@ export default async function ConfirmarVencedor({ params, searchParams }: PagePr
       <CartaoParte supabase={supabase} id={lance.fornecedor_id} como="vendedor" />
       <div className="cartao space-y-2">
         <p className="text-sm text-stone-600">
-          Ao confirmar, o leilão fecha com este fornecedor, a compra entra no seu histórico e vocês combinam a entrega pelo WhatsApp.{pessoas > 0 && " As outras pessoas do grupo são avisadas e combinam a parte delas."} Não dá para desfazer.
+          Ao confirmar, o leilão fecha com este fornecedor, a compra entra no seu histórico e vocês combinam a entrega pelo WhatsApp.{pessoas > 0 && " Depois, o fornecedor aceita ou recusa vender para cada pessoa do grupo."} Não dá para desfazer.
         </p>
         <form action={escolherVencedor} className="flex flex-wrap gap-2">
           <input type="hidden" name="pedido" value={id} />

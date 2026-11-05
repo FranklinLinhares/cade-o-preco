@@ -95,6 +95,19 @@ export async function sairDoGrupo(_: EstadoForm, form: FormData): Promise<Estado
   return { ok: "Você saiu do grupo." };
 }
 
+// Leilão em grupo: o vencedor aceita ou recusa vender para cada participante.
+export async function responderParticipante(form: FormData) {
+  const { supabase } = await exigirEmpresa();
+  const pedido = String(form.get("pedido"));
+  const { error } = await supabase.rpc("responder_participante", {
+    p_pedido: pedido,
+    p_comprador: String(form.get("comprador")),
+    p_aceitar: form.get("resposta") === "aceitar",
+  });
+  if (error) throw new Error(mensagemDeErro(error));
+  revalidatePath(`/pedidos/${pedido}`);
+}
+
 export async function escolherVencedor(form: FormData) {
   const { supabase } = await exigirEmpresa();
   const pedido = String(form.get("pedido"));

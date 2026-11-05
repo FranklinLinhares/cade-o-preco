@@ -9,7 +9,7 @@ import { Estrelas } from "@/components/Estrelas";
 import { buscarReputacao } from "@/lib/reputacao";
 import { buscarTelefones } from "@/lib/telefones";
 import { ConclusaoNegocio, type EstadoConclusao } from "@/components/ConclusaoNegocio";
-import { cancelarPedido } from "../acoes";
+import { cancelarPedido, responderParticipante } from "../acoes";
 import { trocarModo } from "@/app/cadastro/modo";
 import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { AoVivo } from "./AoVivo";
@@ -38,7 +38,14 @@ type Pedido = {
   aceita_participantes: boolean;
   comprador: { nome: string; cidade: string };
 };
-type Participante = { comprador_id: string; quantidade: number; entrou_em: string; comprador: { nome: string } | null };
+type Participante = {
+  comprador_id: string;
+  quantidade: number;
+  entrou_em: string;
+  situacao: "no_grupo" | "aguardando" | "aceito" | "recusado";
+  comprador: { nome: string } | null;
+};
+const SITUACAO_GRUPO = { no_grupo: "", aguardando: "aguardando o vendedor", aceito: "vendedor aceitou", recusado: "vendedor recusou" };
 type CompraDoLeilao = EstadoConclusao & { comprador_id: string; quantidade: number; comprador: { nome: string } | null };
 type Lance = {
   id: string;
@@ -79,7 +86,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
     pedido.aceita_participantes
       ? supabase
           .from("pedido_participantes")
-          .select("comprador_id, quantidade, entrou_em, comprador:empresas!pedido_participantes_comprador_id_fkey(nome)")
+          .select("comprador_id, quantidade, entrou_em, situacao, comprador:empresas!pedido_participantes_comprador_id_fkey(nome)")
           .eq("pedido_id", id)
           .order("entrou_em")
           .returns<Participante[]>()
@@ -133,7 +140,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
 
   // Reputação, WhatsApp e o negócio fechado: buscas independentes, ao mesmo tempo.
   const [reputacao, telefones, conclusao] = await Promise.all([
-    buscarReputacao(supabase, [pedido.comprador_id, ...lances.map((l) => l.fornecedor_id)]),
+    buscarReputacao(supabase, [pedido.comprador_id, ...participantes.map((p) => p.comprador_id), ...lances.map((l) => l.fornecedor_id)]),
     // O WhatsApp da outra parte só aparece depois do negócio fechado.
     buscarTelefones(supabase, vencedor ? [vencedor.fornecedor_id, pedido.comprador_id, ...(comprasDoPedido ?? []).map((c) => c.comprador_id)] : []),
     buscarCompras(),
@@ -150,7 +157,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
     ? `Leilão fechado. Seu último lance foi ${porUnidade(meuMenor.preco_unitario, u)}; você pode baixar.`
     : "Leilão fechado: você não vê os outros lances.";
   if (pedido.preco_maximo) dica += ` Preço máximo: ${porUnidade(pedido.preco_maximo, u)}.`;
-  if (pessoasNoGrupo > 0) dica = `Leilão em grupo: ${pessoasNoGrupo + 1} compradores somam ${quantidadeTotal} ${u}. O preço vale para todos e cada um fecha a sua parte com você. ` + dica;
+  if (pessoasNoGrupo > 0) dica = `Leilão em grupo: ${pessoasNoGrupo + 1} compradores somam ${quantidadeTotal} ${u}. Se vencer, você escolhe para quem do grupo vender, no preço do seu lance. ` + dica;
   const travado = pessoasNoGrupo > 0 && lances.length > 0;
   const limiteSaida = new Date(new Date(pedido.encerra_em).getTime() - 2 * 3_600_000);
   const regraSaida = lances.length === 0
@@ -195,6 +202,12 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
         <div className="cartao border-green-700 bg-green-50">
           <h2 className="font-semibold">Negócio fechado: {porUnidade(vencedor.preco_unitario, u)}</h2>
           <p>Fornecedor: {vencedor.fornecedor?.nome} ({vencedor.fornecedor?.cidade}) · <LinkWhatsApp telefone={telefones.get(vencedor.fornecedor_id)} /></p>
+          {minhaParte?.situacao === "aguardando" && (
+            <p className="text-sm">Sua parte ({minhaParte.quantidade} {u}) está esperando {vencedor.fornecedor?.nome} aceitar vender. Avisamos quando ele responder.</p>
+          )}
+          {minhaParte?.situacao === "recusado" && (
+            <p className="text-sm text-red-800">{vencedor.fornecedor?.nome} recusou vender a sua parte. Você pode criar um leilão só seu para este produto.</p>
+          )}
           {minhaCompra && (
             <>
               {pessoasNoGrupo > 0 && <p className="text-sm">Sua parte: {minhaCompra.quantidade} {u} · {reais(Number(vencedor.preco_unitario) * Number(minhaCompra.quantidade))}</p>}
@@ -208,7 +221,32 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       {vencedor && souVencedor && (
         <div className="cartao space-y-3 border-green-700 bg-green-50">
           <h2 className="font-semibold">Você venceu! {porUnidade(vencedor.preco_unitario, u)}</h2>
-          {conclusao.compras.length > 1 && <p className="text-sm">Leilão em grupo: combine a entrega e o pagamento com cada comprador.</p>}
+          {participantes.length > 0 && <p className="text-sm">Leilão em grupo: a compra de quem criou o leilão já está fechada. Aceite ou recuse vender para cada pessoa do grupo, e combine a entrega com quem você aceitar.</p>}
+          {participantes.filter((p) => p.situacao !== "aceito").length > 0 && (
+            <ul className="divide-y divide-green-200 rounded-lg border border-green-200 bg-white px-3">
+              {participantes.filter((p) => p.situacao !== "aceito").map((p) => {
+                const rep = reputacao.get(p.comprador_id);
+                return (
+                  <li key={p.comprador_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span>
+                      <Link href={`/perfil/${p.comprador_id}`} className="font-medium hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>{" "}
+                      <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {p.quantidade} {u} · {reais(Number(vencedor.preco_unitario) * Number(p.quantidade))}
+                    </span>
+                    {p.situacao === "aguardando" ? (
+                      <form action={responderParticipante} className="flex gap-2">
+                        <input type="hidden" name="pedido" value={id} />
+                        <input type="hidden" name="comprador" value={p.comprador_id} />
+                        <button name="resposta" value="aceitar" className="botao py-1 text-sm">Aceitar</button>
+                        <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario py-1 text-sm" pergunta={`Recusar vender para ${p.comprador?.nome ?? "este comprador"}? Ele é avisado e não dá para desfazer.`}>Recusar</BotaoConfirmar>
+                      </form>
+                    ) : (
+                      <span className="text-sm text-stone-500">Você recusou</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <ul className="divide-y divide-green-200">
             {conclusao.compras.map((c) => (
               <li key={c.id} className="space-y-2 py-2">
@@ -229,18 +267,42 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       {souComprador && pedido.aceita_participantes && (
         <section className="cartao space-y-2 border-violet-300">
           <h2 className="font-semibold">Leilão em grupo · {participantes.length === 0 ? "ninguém entrou ainda" : `${participantes.length + 1} pessoas, ${quantidadeTotal} ${u}`}</h2>
-          <p className="text-sm text-stone-600">Quem mora a até 5 km pode entrar com a própria quantidade. Os vendedores veem só o total. Quando você escolher o vencedor, cada pessoa fecha a sua parte com ele.</p>
+          <p className="text-sm text-stone-600">Quem mora a até 5 km pode entrar com a própria quantidade. Os vendedores veem quem está no grupo. Quando você escolher o vencedor, a sua compra fecha na hora e ele aceita ou recusa vender para cada pessoa do grupo.</p>
           {participantes.length > 0 && (
             <ul className="divide-y divide-stone-100 text-sm">
               <li className="flex justify-between py-1"><span>Você</span><span>{pedido.quantidade} {u}</span></li>
               {participantes.map((p) => (
                 <li key={p.comprador_id} className="flex justify-between py-1">
                   <Link href={`/perfil/${p.comprador_id}`} className="hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>
-                  <span>{p.quantidade} {u}</span>
+                  <span>{p.quantidade} {u}{SITUACAO_GRUPO[p.situacao] && <span className="text-stone-500"> · {SITUACAO_GRUPO[p.situacao]}</span>}</span>
                 </li>
               ))}
             </ul>
           )}
+        </section>
+      )}
+      {!souComprador && !souParticipante && empresa.papel === "fornecedor" && aberto && participantes.length > 0 && (
+        <section className="cartao space-y-2 border-violet-300">
+          <h2 className="font-semibold">Quem está comprando · {participantes.length + 1} pessoas, {quantidadeTotal} {u}</h2>
+          <p className="text-sm text-stone-600">Se você vencer, a compra de quem criou o leilão fecha na hora. Depois você escolhe para quem do grupo aceita vender, no preço do seu lance.</p>
+          <ul className="divide-y divide-stone-100 text-sm">
+            <li className="flex justify-between py-1">
+              <span><Link href={`/perfil/${pedido.comprador_id}`} className="hover:underline">{pedido.comprador.nome}</Link> (criou o leilão)</span>
+              <span>{pedido.quantidade} {u}</span>
+            </li>
+            {participantes.map((p) => {
+              const rep = reputacao.get(p.comprador_id);
+              return (
+                <li key={p.comprador_id} className="flex justify-between gap-2 py-1">
+                  <span>
+                    <Link href={`/perfil/${p.comprador_id}`} className="hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>{" "}
+                    <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} />
+                  </span>
+                  <span>{p.quantidade} {u}</span>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 

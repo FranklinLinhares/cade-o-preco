@@ -28,8 +28,8 @@ export function QueroTambem({
       <h2 className="font-semibold">{noGrupo ? `Você está no grupo com ${minhaQuantidade} ${unidade}` : "Quer este produto também?"}</h2>
       <p className="text-sm text-stone-600">
         {noGrupo
-          ? "Quando o leilão fechar, você compra a sua parte no preço vencedor e combina a entrega e o pagamento direto com o vendedor."
-          : "Entre no grupo com a sua quantidade. O produto e as especificações são os de quem criou o leilão. Você compra a sua parte no preço vencedor e paga direto ao vendedor."}
+          ? "Quando o leilão fechar, o vendedor vencedor aceita ou recusa vender a sua parte. Se aceitar, você compra no preço vencedor e combina a entrega e o pagamento direto com ele."
+          : "Entre no grupo com a sua quantidade. O produto e as especificações são os de quem criou o leilão. Os vendedores veem o seu nome e a sua quantidade. Se o vencedor aceitar a sua parte, você compra no preço vencedor e paga direto a ele."}
       </p>
       <form action={entrar} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="pedido" value={pedido} />

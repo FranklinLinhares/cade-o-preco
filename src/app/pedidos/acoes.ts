@@ -45,6 +45,7 @@ export async function criarPedido(_: EstadoForm, form: FormData): Promise<Estado
       entrega_ate: form.get("entrega_ate") || null,
       preco_maximo: numero(form.get("preco_maximo")),
       lances_visiveis: form.get("lances_visiveis") === "sim",
+      aceita_participantes: form.get("aceita_participantes") === "sim",
       encerra_em: new Date(Date.now() + horas * 3_600_000).toISOString(),
       referencia_preco: referencia ? JSON.parse(referencia) : null,
       convidados,
@@ -69,6 +70,29 @@ export async function darLance(_: EstadoForm, form: FormData): Promise<EstadoFor
   if (error) return { erro: mensagemDeErro(error) };
   revalidatePath(`/pedidos/${pedido}`);
   return { ok: `Lance de R$ ${preco.toFixed(2).replace(".", ",")} enviado.` };
+}
+
+// Leilão em grupo: entra com a sua quantidade, ou muda a quantidade se já está no grupo.
+export async function entrarNoGrupo(_: EstadoForm, form: FormData): Promise<EstadoForm> {
+  const { supabase } = await exigirEmpresa();
+  const pedido = String(form.get("pedido"));
+  const quantidade = numero(form.get("quantidade"));
+  if (!quantidade) return { erro: "Informe a quantidade que você quer." };
+  const { error } = await supabase.rpc("entrar_no_grupo", { p_pedido: pedido, p_quantidade: quantidade });
+  if (error) return { erro: mensagemDeErro(error) };
+  revalidatePath(`/pedidos/${pedido}`);
+  revalidatePath("/pedidos");
+  return { ok: "Pronto! Você está no grupo. Avisamos quando o leilão fechar." };
+}
+
+export async function sairDoGrupo(_: EstadoForm, form: FormData): Promise<EstadoForm> {
+  const { supabase } = await exigirEmpresa();
+  const pedido = String(form.get("pedido"));
+  const { error } = await supabase.rpc("sair_do_grupo", { p_pedido: pedido });
+  if (error) return { erro: mensagemDeErro(error) };
+  revalidatePath(`/pedidos/${pedido}`);
+  revalidatePath("/pedidos");
+  return { ok: "Você saiu do grupo." };
 }
 
 export async function escolherVencedor(form: FormData) {

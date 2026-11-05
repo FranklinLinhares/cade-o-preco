@@ -123,7 +123,7 @@ export function FormularioPedido({ produtoInicial, fornecedores }: { produtoInic
           <input type="checkbox" name="aceita_participantes" value="sim" className="mt-1" />
           <span>
             <strong>Leilão em grupo:</strong> deixar quem mora a até 5 km entrar neste leilão com a própria quantidade.
-            <span className="block text-sm text-stone-500">Com mais gente, o volume cresce e o vendedor tem motivo para baixar o preço. Cada um fecha e paga a sua parte direto ao vendedor.</span>
+            <span className="block text-sm text-stone-500">Com mais gente, o volume cresce e o vendedor tem motivo para baixar o preço. A sua compra fecha com o vencedor; ele aceita ou recusa vender para cada pessoa do grupo.</span>
           </span>
         </label>
 

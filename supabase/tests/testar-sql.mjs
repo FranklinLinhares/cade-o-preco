@@ -494,7 +494,8 @@ assert.ok((await avisos(g.dona)).some((t) => t.includes("José entrou")), "quem 
 const vendedorVe = (await como(g.vendedor, `select quantidade, participantes from pedidos_proximos() where id = $1`, [grupo])).rows[0];
 assert.equal(Number(vendedorVe.quantidade), 25, "vendedor vê o total do grupo");
 assert.equal(Number(vendedorVe.participantes), 1);
-assert.equal((await como(g.vendedor, `select * from pedido_participantes`)).rows.length, 0, "vendedor não vê quem está no grupo");
+assert.equal((await como(g.vendedor, `select comprador_id from pedido_participantes`)).rows[0]?.comprador_id, g.vizinho, "vendedor vê quem está no grupo");
+assert.equal((await como(g.longe, `select * from pedido_participantes`)).rows.length, 0, "outro comprador não vê o grupo");
 assert.equal((await como(g.dona, `select * from pedido_participantes where pedido_id = $1`, [grupo])).rows.length, 1, "quem criou vê o grupo");
 // Sair é livre antes do primeiro lance; depois, só até 2 horas antes do fim.
 await como(g.vizinho, `select sair_do_grupo($1)`, [grupo]);
@@ -509,12 +510,19 @@ await como(g.vizinho, `select entrar_no_grupo($1, 18)`, [grupo]); // aumentar po
 // Com participante e lance, quem criou não cancela mais.
 await como(g.dona, `update pedidos set status = 'cancelado' where id = $1`, [grupo]);
 assert.equal((await db.query(`select status from pedidos where id = $1`, [grupo])).rows[0].status, "aberto");
-// Fechar cria uma compra para cada um, no mesmo preço, e avisa o participante.
+// Fechar: a compra de quem criou sai na hora; o participante espera o vendedor aceitar.
 const lanceGrupo = (await db.query(`select id from lances where pedido_id = $1`, [grupo])).rows[0].id;
 await como(g.dona, `select fechar_pedido($1, $2)`, [grupo, lanceGrupo]);
-const comprasGrupo = (await db.query(`select comprador_id, quantidade, preco_unitario from compras where pedido_id = $1 order by quantidade`, [grupo])).rows;
-assert.deepEqual(comprasGrupo.map((c) => [c.comprador_id, Number(c.quantidade), Number(c.preco_unitario)]), [[g.dona, 10, 5.5], [g.vizinho, 18, 5.5]]);
+const comprasDoGrupo = async () => (await db.query(`select comprador_id, quantidade, preco_unitario from compras where pedido_id = $1 order by quantidade`, [grupo])).rows
+  .map((c) => [c.comprador_id, Number(c.quantidade), Number(c.preco_unitario)]);
+assert.deepEqual(await comprasDoGrupo(), [[g.dona, 10, 5.5]]);
 assert.ok((await avisos(g.vizinho)).some((t) => t.includes("fechou com Mercadinho")), "participante sabe do fechamento");
+assert.ok((await avisos(g.vendedor)).some((t) => t.includes("esperam você aceitar")), "vendedor sabe que precisa responder");
+await falha(g.dona, `select responder_participante($1, $2, true)`, [grupo, g.vizinho], /Só quem venceu/);
+await como(g.vendedor, `select responder_participante($1, $2, true)`, [grupo, g.vizinho]);
+await falha(g.vendedor, `select responder_participante($1, $2, false)`, [grupo, g.vizinho], /já respondeu/);
+assert.deepEqual(await comprasDoGrupo(), [[g.dona, 10, 5.5], [g.vizinho, 18, 5.5]]);
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("aceitou vender")), "participante sabe do aceite");
 assert.equal((await como(g.vendedor, `select * from telefones_de_negocio($1)`, [[g.vizinho]])).rows.length, 1, "vendedor vê o WhatsApp do participante");
 // Grupo sem lance: quem criou cancela e o participante é avisado.
 const grupo2 = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
@@ -523,6 +531,15 @@ await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo2]);
 await como(g.dona, `update pedidos set status = 'cancelado' where id = $1`, [grupo2]);
 assert.equal((await db.query(`select status from pedidos where id = $1`, [grupo2])).rows[0].status, "cancelado");
 assert.ok((await avisos(g.vizinho)).some((t) => t.includes("Feijão foi cancelado")));
+// Vendedor recusa um participante: não vira compra e o participante é avisado.
+const grupo3 = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
+  values ($1, 'Milho', 'milho', 'graos', 'kg', 5, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
+await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo3]);
+await como(g.vendedor, `select dar_lance($1, 3)`, [grupo3]);
+await como(g.dona, `select fechar_pedido($1, (select id from lances where pedido_id = $1))`, [grupo3]);
+await como(g.vendedor, `select responder_participante($1, $2, false)`, [grupo3, g.vizinho]);
+assert.equal((await db.query(`select count(*) n from compras where pedido_id = $1`, [grupo3])).rows[0].n, 1, "recusado não vira compra");
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("recusou vender Milho")));
 // Leilão comum não aceita gente.
 const comum = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em)
   values ($1, 'Açúcar', 'acucar', 'graos', 'kg', 5, now() + interval '1 day') returning id`, [g.dona])).rows[0].id;

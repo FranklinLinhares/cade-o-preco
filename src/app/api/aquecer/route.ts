@@ -13,12 +13,13 @@ export async function GET() {
   const supabase = createClient(url, chave, { auth: { persistSession: false, autoRefreshToken: false } });
   const inicio = performance.now();
   const [banco, login] = await Promise.all([
-    // Sem login a regra de acesso não devolve nada; serve só para acordar o banco.
+    // Sem login o banco responde "sem permissão" (401): mesmo assim a consulta chega
+    // até ele, que é o que importa aqui.
     supabase.from("empresas").select("id", { head: true }).limit(1),
     fetch(`${url}/auth/v1/health`, { headers: { apikey: chave }, cache: "no-store" }),
   ]);
   return NextResponse.json(
-    { ok: !banco.error && login.ok, ms: Math.round(performance.now() - inicio) },
+    { ok: banco.status > 0 && banco.status < 500 && login.ok, ms: Math.round(performance.now() - inicio) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

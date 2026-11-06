@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { criarPedido, type EstadoForm } from "../acoes";
+import { criarPedido, precosNoApp, type EstadoForm } from "../acoes";
 import { AssistenteIA, type ItemIA } from "@/components/AssistenteIA";
 import { ReferenciaPreco } from "@/components/ReferenciaPreco";
 import { CATEGORIAS, UNIDADES, type ReferenciaPreco as Referencia } from "@/lib/dominio";
@@ -24,19 +24,13 @@ export function FormularioPedido({ produtoInicial, fornecedores }: { produtoInic
     setPesquisando(true);
     setErroPesquisa(undefined);
     try {
-      const resposta = await fetch("/api/ia/preco", {
-        method: "POST",
-        body: JSON.stringify({
-          produto: dados.get("produto"),
-          produto_chave: item.produto_chave,
-          especificacoes: dados.get("especificacoes"),
-          unidade: dados.get("unidade"),
-        }),
+      const resposta = await precosNoApp({
+        produto: String(dados.get("produto") ?? ""),
+        produto_chave: item.produto_chave,
+        unidade: String(dados.get("unidade") ?? ""),
       });
-      const json = await resposta.json();
-      if (!resposta.ok) throw new Error(json.erro);
-      setReferencia(json);
-      if (json.preco_maximo_sugerido && !precoMaximo) setPrecoMaximo(String(json.preco_maximo_sugerido));
+      if (resposta.erro) throw new Error(resposta.erro);
+      setReferencia(resposta.referencia);
     } catch (e) {
       setErroPesquisa(mensagemDaTela(e));
     } finally {
@@ -96,7 +90,7 @@ export function FormularioPedido({ produtoInicial, fornecedores }: { produtoInic
 
         <div className="space-y-2">
           <button type="button" disabled={pesquisando} onClick={(e) => pesquisar(e.currentTarget.form!)} className="botao-secundario w-full">
-            {pesquisando ? <Girando texto="Pesquisando preços na internet..." /> : "Pesquisar preço de mercado com IA"}
+            {pesquisando ? <Girando texto="Buscando preços no app..." /> : "Ver quanto se paga por isso no app"}
           </button>
           {erroPesquisa && <p className="erro">{erroPesquisa}</p>}
           {referencia && <ReferenciaPreco referencia={referencia} />}

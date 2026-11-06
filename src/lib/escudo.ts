@@ -24,7 +24,7 @@ export function mediaDasOfertas(precos: number[]): MediaMercado | null {
   return { media, fonte: `média de ${precos.length} ofertas na vitrine` };
 }
 
-// Para um leilão: ofertas próximas primeiro; sem elas, a referência pesquisada pela IA.
+// Para um leilão: ofertas próximas primeiro; sem elas, a referência salva ao criar o leilão.
 export function mediaParaPedido(
   precosOfertas: number[],
   referencia: ReferenciaPreco | null,
@@ -33,7 +33,7 @@ export function mediaParaPedido(
   const daVitrine = mediaDasOfertas(precosOfertas);
   if (daVitrine) return daVitrine;
   if (referencia?.medio && referencia.unidade === unidade) {
-    return { media: Number(referencia.medio), fonte: "referência de mercado pesquisada pela IA" };
+    return { media: Number(referencia.medio), fonte: "referência de preço salva ao criar o leilão" };
   }
   return null;
 }

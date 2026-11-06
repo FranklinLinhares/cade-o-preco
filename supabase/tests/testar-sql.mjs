@@ -243,8 +243,12 @@ assert.equal(Number(hist.rows[1].variacao_pct), 30, "tomate passou de 3,00 para 
 // Fornecedor não vê o histórico de compras de outros fornecedores.
 assert.equal((await como(ids.atacado, `select * from compras where produto_chave = 'tomate-italiano'`)).rows.length, 0);
 
-const media = await como(ids.restaurante, `select * from preco_medio_regional('arroz-branco-tipo-1')`);
+const media = await como(ids.restaurante, `select * from preco_medio_regional('arroz-branco-tipo-1', 'kg')`);
 assert.equal(Number(media.rows[0].preco_medio), 5.4);
+// A média só conta compras na mesma unidade.
+const mediaOutraUnidade = await como(ids.restaurante, `select * from preco_medio_regional('arroz-branco-tipo-1', 'un')`);
+assert.equal(Number(mediaOutraUnidade.rows[0].compras), 0);
+assert.equal((await db.query(`select has_function_privilege('anon', 'preco_medio_regional(text, unidade_medida)', 'execute') ok`)).rows[0].ok, false);
 
 // Avaliações: o comprador avalia o vendedor e o vendedor avalia o comprador.
 const compraVitrine = (await db.query(`select id from compras where oferta_id = $1`, [ofertaAgricultor])).rows[0].id;

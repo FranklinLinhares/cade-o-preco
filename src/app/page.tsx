@@ -13,9 +13,9 @@ const RECURSOS = [
     texto: "Veja quantos fornecedores oferecem o produto perto de você e o menor, o médio e o maior preço.",
   },
   {
-    icone: "✨",
-    titulo: "Pesquisa de preço por IA",
-    texto: "A IA busca cotações de CEASA, CONAB e atacadistas e mostra quanto você pagou semana a semana.",
+    icone: "📈",
+    titulo: "Histórico de preços",
+    texto: "Veja quanto se paga na sua região e quanto você pagou semana a semana.",
   },
 ];
 

@@ -17,7 +17,7 @@ function seisMesesAtras() {
   return d.toISOString().slice(0, 10);
 }
 
-// Preço com que o vencedor é comparado: a média da pesquisa de mercado feita ao criar o
+// Preço com que o vencedor é comparado: o preço de referência salvo ao criar o
 // leilão ou, sem ela, a média dos lances recebidos (só quando houve disputa).
 function precoDeComparacao(c: CompraDeLeilao) {
   const ref = c.pedidos?.referencia_preco;
@@ -86,7 +86,7 @@ export async function Economia({ supabase, comprador }: { supabase: SupabaseClie
             ))}
           </ul>
           <p className="text-xs text-stone-500">
-            Comparação com a média da pesquisa de preço feita ao criar o leilão; sem pesquisa, com a média dos lances recebidos.
+            Comparação com o preço de referência salvo ao criar o leilão; sem ele, com a média dos lances recebidos.
           </p>
         </>
       )}

@@ -5,7 +5,7 @@ import { mensagemDeErro } from "@/lib/erros";
 import { revalidatePath } from "next/cache";
 import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados, ocultar } from "@/lib/ocultos";
-import { CATEGORIAS, UNIDADES, chaveDoProduto } from "@/lib/dominio";
+import { CATEGORIAS, UNIDADES, chaveDoProduto, reais, type ReferenciaPreco, type Unidade } from "@/lib/dominio";
 import { lerConvidados } from "@/lib/contatos";
 
 export type EstadoForm = { erro?: string; ok?: string };
@@ -200,4 +200,52 @@ export async function criarLeiloes(dados: { itens: ItemLeilaoNovo[]; horas: numb
   if (error) return { erro: mensagemDeErro(error) };
   revalidatePath("/pedidos");
   redirect("/pedidos");
+}
+
+// Preço de referência do próprio app, sem IA: ofertas da vitrine perto do comprador e a média
+// que os compradores da região pagaram nos últimos 30 dias, sempre na mesma unidade.
+export async function precosNoApp(dados: { produto: string; produto_chave?: string; unidade: string }): Promise<
+  { referencia?: ReferenciaPreco; erro?: string }
+> {
+  const { supabase, empresa } = await exigirEmpresa();
+  const produto = dados.produto.trim().slice(0, 120);
+  if (!produto || !(dados.unidade in UNIDADES)) return { erro: "Informe o produto e a unidade." };
+  const unidade = dados.unidade as Unidade;
+  const chave = dados.produto_chave?.trim() || chaveDoProduto(produto);
+
+  const [{ data: ofertas }, { data: compras }] = await Promise.all([
+    supabase.rpc("vitrine_ofertas", { termo: chave }),
+    supabase.rpc("preco_medio_regional", { chave, p_unidade: unidade }).maybeSingle<{ preco_medio: number | null; compras: number }>(),
+  ]);
+  const precos = ((ofertas ?? []) as { fornecedor_id: string; produto_chave: string; unidade: Unidade; preco_unitario: number }[])
+    .filter((o) => o.fornecedor_id !== empresa.id && o.produto_chave === chave && o.unidade === unidade)
+    .map((o) => Number(o.preco_unitario));
+  const pagos = compras?.preco_medio != null ? Number(compras.preco_medio) : null;
+  const nCompras = Number(compras?.compras ?? 0);
+
+  if (precos.length === 0 && pagos == null) {
+    return { erro: "Ainda não há ofertas nem compras deste produto perto de você. Os lances do leilão vão mostrar o preço." };
+  }
+  const u = UNIDADES[unidade];
+  const partes: string[] = [];
+  if (precos.length > 0) {
+    partes.push(`${precos.length} oferta${precos.length > 1 ? "s" : ""} na vitrine perto de você, de ${reais(Math.min(...precos))} a ${reais(Math.max(...precos))} por ${u}.`);
+  }
+  if (pagos != null) {
+    partes.push(`Nos últimos 30 dias, ${nCompras} compra${nCompras > 1 ? "s" : ""} na região saíram em média a ${reais(pagos)} por ${u}.`);
+  }
+  const mediaOfertas = precos.length > 0 ? precos.reduce((a, b) => a + b, 0) / precos.length : null;
+  const medio = pagos ?? mediaOfertas;
+  const todos = pagos != null ? [...precos, pagos] : precos;
+  return {
+    referencia: {
+      minimo: Math.min(...todos),
+      medio: medio != null ? Math.round(medio * 100) / 100 : null,
+      maximo: Math.max(...todos),
+      unidade,
+      resumo: partes.join(" "),
+      fontes: [],
+      preco_maximo_sugerido: null,
+    },
+  };
 }

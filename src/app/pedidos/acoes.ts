@@ -82,7 +82,7 @@ export async function entrarNoGrupo(_: EstadoForm, form: FormData): Promise<Esta
   if (error) return { erro: mensagemDeErro(error) };
   revalidatePath(`/pedidos/${pedido}`);
   revalidatePath("/pedidos");
-  return { ok: "Pronto! Você está no grupo. Avisamos quando o leilão fechar." };
+  return { ok: "Pronto! Quem criou o leilão vai ver o seu pedido. Avisamos quando responder." };
 }
 
 export async function sairDoGrupo(_: EstadoForm, form: FormData): Promise<EstadoForm> {
@@ -104,6 +104,28 @@ export async function responderParticipante(form: FormData) {
     p_comprador: String(form.get("comprador")),
     p_aceitar: form.get("resposta") === "aceitar",
   });
+  if (error) throw new Error(mensagemDeErro(error));
+  revalidatePath(`/pedidos/${pedido}`);
+}
+
+// Leilão em grupo: quem criou aceita ou recusa quem pediu para entrar.
+export async function responderPedidoGrupo(form: FormData) {
+  const { supabase } = await exigirEmpresa();
+  const pedido = String(form.get("pedido"));
+  const { error } = await supabase.rpc("responder_pedido_grupo", {
+    p_pedido: pedido,
+    p_comprador: String(form.get("comprador")),
+    p_aceitar: form.get("resposta") === "aceitar",
+  });
+  if (error) throw new Error(mensagemDeErro(error));
+  revalidatePath(`/pedidos/${pedido}`);
+}
+
+// Leilão em grupo fechado: o participante confirma a compra ou desiste.
+export async function confirmarCompraGrupo(form: FormData) {
+  const { supabase } = await exigirEmpresa();
+  const pedido = String(form.get("pedido"));
+  const { error } = await supabase.rpc("confirmar_compra_grupo", { p_pedido: pedido, p_confirmar: form.get("resposta") === "confirmar" });
   if (error) throw new Error(mensagemDeErro(error));
   revalidatePath(`/pedidos/${pedido}`);
 }

@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { idsMarcados } from "@/lib/ocultos";
 import { mensagemDeErro } from "@/lib/erros";
 import { exigirEmpresa } from "@/lib/sessao";
 import { UNIDADES, chaveDoProduto } from "@/lib/dominio";
@@ -9,6 +11,24 @@ export async function marcarTodosLidos() {
   const { supabase, empresa } = await exigirEmpresa();
   await supabase.from("avisos").update({ lido: true }).eq("empresa_id", empresa.id).eq("lido", false);
   revalidatePath("/", "layout");
+}
+
+// Excluir avisos precisa da migração 0031. Sem ela o banco recusa, e a tela
+// mostra uma mensagem em vez de quebrar.
+export async function excluirAvisos(form: FormData) {
+  const { supabase, empresa } = await exigirEmpresa();
+  const ids = idsMarcados(form);
+  if (ids.length === 0) return;
+  const { error } = await supabase.from("avisos").delete().in("id", ids).eq("empresa_id", empresa.id);
+  revalidatePath("/", "layout");
+  if (error) redirect("/avisos?erro=excluir");
+}
+
+export async function excluirLidos() {
+  const { supabase, empresa } = await exigirEmpresa();
+  const { error } = await supabase.from("avisos").delete().eq("empresa_id", empresa.id).eq("lido", true);
+  revalidatePath("/", "layout");
+  if (error) redirect("/avisos?erro=excluir");
 }
 
 export type EstadoAlerta = { erro?: string };

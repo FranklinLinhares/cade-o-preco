@@ -583,4 +583,12 @@ const comum = (await como(g.dona, `insert into pedidos (comprador_id, produto, p
   values ($1, 'Açúcar', 'acucar', 'graos', 'kg', 5, now() + interval '1 day') returning id`, [g.dona])).rows[0].id;
 await falha(g.vizinho, `select entrar_no_grupo($1, 5)`, [comum], /não aceita/);
 
+// Cada conta exclui os próprios avisos, e só os seus.
+const avisoDoVizinho = (await db.query(`select id from avisos where empresa_id = $1 limit 1`, [g.vizinho])).rows[0].id;
+await como(g.dona, `delete from avisos where id = $1`, [avisoDoVizinho]);
+assert.equal((await db.query(`select count(*) n from avisos where id = $1`, [avisoDoVizinho])).rows[0].n, 1, "não apaga aviso dos outros");
+await como(g.vizinho, `delete from avisos where id = $1`, [avisoDoVizinho]);
+assert.equal((await db.query(`select count(*) n from avisos where id = $1`, [avisoDoVizinho])).rows[0].n, 0, "apaga o próprio aviso");
+await falha(g.vizinho, `insert into avisos (empresa_id, texto, link) values ($1, 'x', '/')`, [g.vizinho], /permission denied/);
+
 console.log("Todos os testes do banco passaram.");

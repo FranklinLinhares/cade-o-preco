@@ -13,7 +13,7 @@ const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Cadê o Preço",
-  description: "Compra e venda de alimentos com leilão de menor preço e pesquisa de preços por IA.",
+  description: "Compra e venda de alimentos com leilão de menor preço e comparação de preços na sua região.",
   appleWebApp: { capable: true, title: "Cadê o Preço", statusBarStyle: "default" },
 };
 

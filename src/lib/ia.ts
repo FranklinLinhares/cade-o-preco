@@ -2,10 +2,10 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { CATEGORIAS, UNIDADES, type ReferenciaPreco } from "@/lib/dominio";
+import { CATEGORIAS, UNIDADES } from "@/lib/dominio";
 
 // Agente de IA do Cadê o Preço: transforma texto livre em item estruturado e
-// pesquisa preços de referência na internet.
+// lê folhetos de ofertas.
 
 const MODELO = "claude-opus-5-5";
 
@@ -59,74 +59,6 @@ export async function estruturarItem(texto: string): Promise<ItemEstruturado> {
     throw new ErroIa("A IA não conseguiu entender o texto. Preencha os campos manualmente.");
   }
   return resposta.parsed_output;
-}
-
-const ReferenciaSchema = z.object({
-  minimo: z.number().nullable(),
-  medio: z.number().nullable(),
-  maximo: z.number().nullable(),
-  resumo: z.string().describe("Duas ou três frases em português sobre o preço encontrado e de onde veio"),
-  fontes: z.array(z.object({ titulo: z.string(), url: z.string(), preco: z.number().nullable() })),
-  preco_maximo_sugerido: z.number().nullable().describe("Teto realista para o leilão, por unidade"),
-});
-
-// Pesquisa preços na internet e devolve uma faixa de referência por unidade.
-// Primeiro pesquisa com busca na web, depois organiza o resultado em JSON.
-export async function pesquisarPreco(params: {
-  produto: string;
-  especificacoes?: string;
-  unidade: keyof typeof UNIDADES;
-  cidade: string;
-  uf: string;
-  precoMedioNoApp?: number | null;
-}): Promise<ReferenciaPreco> {
-  const unidade = UNIDADES[params.unidade];
-  const pedido = `Pesquise o preço atual de atacado de "${params.produto}"${
-    params.especificacoes ? ` (${params.especificacoes})` : ""
-  } para compra por empresas em ${params.cidade}/${params.uf}, Brasil.
-Converta todos os preços para R$ por ${unidade}.
-Priorize cotações recentes de CEASA (especialmente CEASA-PB e CEASA-PE), CONAB, atacarejos e distribuidores da região. Se só encontrar preço de varejo, diga isso.
-Liste cada fonte com título, URL e preço por ${unidade}.`;
-
-  const pesquisa = await cliente()
-    .beta.messages.stream({
-      model: MODELO,
-      max_tokens: 32000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "medium" },
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "BR", region: params.uf, city: params.cidade } }],
-      messages: [{ role: "user", content: pedido }],
-    })
-    .finalMessage();
-
-  if (pesquisa.stop_reason === "refusal") {
-    throw new ErroIa("A pesquisa de preço não pôde ser feita agora.");
-  }
-  const textoPesquisa = pesquisa.content
-    .map((bloco) => (bloco.type === "text" ? bloco.text : ""))
-    .join("");
-
-  const contextoApp =
-    params.precoMedioNoApp != null
-      ? `\nNo próprio app, compradores da região pagaram em média R$ ${params.precoMedioNoApp} por ${unidade} nos últimos 30 dias.`
-      : "";
-
-  const organizado = await cliente().messages.parse({
-    model: MODELO,
-    max_tokens: 4000,
-    output_config: { effort: "low", format: zodOutputFormat(ReferenciaSchema) },
-    messages: [
-      {
-        role: "user",
-        content: `Organize esta pesquisa de preço de "${params.produto}" em R$ por ${unidade}. Use só valores que aparecem na pesquisa; deixe null o que não houver.${contextoApp}\n\n<pesquisa>\n${textoPesquisa}\n</pesquisa>`,
-      },
-    ],
-  });
-  if (!organizado.parsed_output) {
-    throw new ErroIa("Não foi possível organizar a pesquisa de preço.");
-  }
-  return { ...organizado.parsed_output, unidade: params.unidade };
 }
 
 const FolhetoSchema = z.object({

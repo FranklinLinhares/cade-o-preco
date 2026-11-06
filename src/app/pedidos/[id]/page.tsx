@@ -204,7 +204,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
 
       {souComprador && pedido.referencia_preco && (
         <div className="space-y-2">
-          <h2 className="font-semibold">Preço de referência pesquisado pela IA</h2>
+          <h2 className="font-semibold">Preço de referência quando o leilão foi criado</h2>
           <ReferenciaPreco referencia={pedido.referencia_preco} />
         </div>
       )}

@@ -490,7 +490,13 @@ await falha(g.vizinho, `select entrar_no_grupo($1, 25)`, [grupo], /no máximo 20
 await falha(g.dona, `select entrar_no_grupo($1, 5)`, [grupo], /criou este leilão/);
 await como(g.vizinho, `select entrar_no_grupo($1, 15)`, [grupo]);
 await falha(g.vizinho, `insert into pedido_participantes (pedido_id, comprador_id, quantidade) values ($1, $2, 1)`, [grupo, g.vizinho], /permission denied/);
-assert.ok((await avisos(g.dona)).some((t) => t.includes("José entrou")), "quem criou sabe que alguém entrou");
+assert.ok((await avisos(g.dona)).some((t) => t.includes("José quer entrar")), "quem criou sabe do pedido para entrar");
+// Antes de quem criou aceitar, o pedido não conta no total nem aparece ao vendedor.
+assert.equal(Number((await como(g.vendedor, `select quantidade from pedidos_proximos() where id = $1`, [grupo])).rows[0].quantidade), 10);
+assert.equal((await como(g.vendedor, `select * from pedido_participantes`)).rows.length, 0, "vendedor não vê pedido pendente");
+await falha(g.vizinho, `select responder_pedido_grupo($1, $2, true)`, [grupo, g.vizinho], /não encontrado/);
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [grupo, g.vizinho]);
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("aceitou você")), "participante sabe que foi aceito");
 const vendedorVe = (await como(g.vendedor, `select quantidade, participantes from pedidos_proximos() where id = $1`, [grupo])).rows[0];
 assert.equal(Number(vendedorVe.quantidade), 25, "vendedor vê o total do grupo");
 assert.equal(Number(vendedorVe.participantes), 1);
@@ -500,6 +506,7 @@ assert.equal((await como(g.dona, `select * from pedido_participantes where pedid
 // Sair é livre antes do primeiro lance; depois, só até 2 horas antes do fim.
 await como(g.vizinho, `select sair_do_grupo($1)`, [grupo]);
 await como(g.vizinho, `select entrar_no_grupo($1, 15)`, [grupo]);
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [grupo, g.vizinho]);
 await como(g.vendedor, `select dar_lance($1, 5.5)`, [grupo]);
 await falha(g.vizinho, `select dar_lance($1, 5)`, [grupo], /Apenas fornecedores|está no grupo/);
 assert.equal((await como(g.vizinho, `select * from lances where pedido_id = $1`, [grupo])).rows.length, 1, "participante vê os lances");
@@ -517,7 +524,11 @@ const comprasDoGrupo = async () => (await db.query(`select comprador_id, quantid
   .map((c) => [c.comprador_id, Number(c.quantidade), Number(c.preco_unitario)]);
 assert.deepEqual(await comprasDoGrupo(), [[g.dona, 10, 5.5]]);
 assert.ok((await avisos(g.vizinho)).some((t) => t.includes("fechou com Mercadinho")), "participante sabe do fechamento");
-assert.ok((await avisos(g.vendedor)).some((t) => t.includes("esperam você aceitar")), "vendedor sabe que precisa responder");
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("Confirme se você quer comprar")), "participante é chamado a confirmar");
+await falha(g.vendedor, `select responder_participante($1, $2, true)`, [grupo, g.vizinho], /já respondeu/); // ainda não confirmou
+await como(g.vizinho, `select confirmar_compra_grupo($1, true)`, [grupo]);
+await falha(g.vizinho, `select confirmar_compra_grupo($1, false)`, [grupo], /já respondeu/);
+assert.ok((await avisos(g.vendedor)).some((t) => t.includes("José confirmou")), "vendedor vê quem confirmou");
 await falha(g.dona, `select responder_participante($1, $2, true)`, [grupo, g.vizinho], /Só quem venceu/);
 await como(g.vendedor, `select responder_participante($1, $2, true)`, [grupo, g.vizinho]);
 await falha(g.vendedor, `select responder_participante($1, $2, false)`, [grupo, g.vizinho], /já respondeu/);
@@ -528,6 +539,7 @@ assert.equal((await como(g.vendedor, `select * from telefones_de_negocio($1)`, [
 const grupo2 = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
   values ($1, 'Feijão', 'feijao', 'graos', 'kg', 5, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
 await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo2]);
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [grupo2, g.vizinho]);
 await como(g.dona, `update pedidos set status = 'cancelado' where id = $1`, [grupo2]);
 assert.equal((await db.query(`select status from pedidos where id = $1`, [grupo2])).rows[0].status, "cancelado");
 assert.ok((await avisos(g.vizinho)).some((t) => t.includes("Feijão foi cancelado")));
@@ -535,11 +547,37 @@ assert.ok((await avisos(g.vizinho)).some((t) => t.includes("Feijão foi cancelad
 const grupo3 = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
   values ($1, 'Milho', 'milho', 'graos', 'kg', 5, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
 await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo3]);
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [grupo3, g.vizinho]);
 await como(g.vendedor, `select dar_lance($1, 3)`, [grupo3]);
 await como(g.dona, `select fechar_pedido($1, (select id from lances where pedido_id = $1))`, [grupo3]);
+await como(g.vizinho, `select confirmar_compra_grupo($1, true)`, [grupo3]);
 await como(g.vendedor, `select responder_participante($1, $2, false)`, [grupo3, g.vizinho]);
 assert.equal((await db.query(`select count(*) n from compras where pedido_id = $1`, [grupo3])).rows[0].n, 1, "recusado não vira compra");
 assert.ok((await avisos(g.vizinho)).some((t) => t.includes("recusou vender Milho")));
+// Quem criou recusa um pedido para entrar; quem desiste depois do fechamento não vira compra.
+const grupo4 = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
+  values ($1, 'Café', 'cafe', 'graos', 'kg', 5, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
+await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo4]);
+await como(g.dona, `select responder_pedido_grupo($1, $2, false)`, [grupo4, g.vizinho]);
+assert.equal((await db.query(`select count(*) n from pedido_participantes where pedido_id = $1`, [grupo4])).rows[0].n, 0);
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("não aceitou você no leilão em grupo de Café")));
+await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo4]);
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [grupo4, g.vizinho]);
+await como(g.vendedor, `select dar_lance($1, 20)`, [grupo4]);
+await como(g.dona, `select fechar_pedido($1, (select id from lances where pedido_id = $1))`, [grupo4]);
+await falha(g.vizinho, `select sair_do_grupo($1)`, [grupo4], /Desistir/);
+await como(g.vizinho, `select confirmar_compra_grupo($1, false)`, [grupo4]);
+assert.ok((await avisos(g.vendedor)).some((t) => t.includes("José desistiu da compra de Café")));
+await falha(g.vendedor, `select responder_participante($1, $2, true)`, [grupo4, g.vizinho], /já respondeu/);
+assert.equal((await db.query(`select count(*) n from compras where pedido_id = $1`, [grupo4])).rows[0].n, 1, "desistente não vira compra");
+// Pedido para entrar sem resposta é descartado no fechamento.
+const grupo5 = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
+  values ($1, 'Sal', 'sal', 'graos', 'kg', 5, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
+await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo5]);
+await como(g.vendedor, `select dar_lance($1, 2)`, [grupo5]);
+await como(g.dona, `select fechar_pedido($1, (select id from lances where pedido_id = $1))`, [grupo5]);
+assert.equal((await db.query(`select count(*) n from pedido_participantes where pedido_id = $1`, [grupo5])).rows[0].n, 0);
+assert.ok((await avisos(g.vizinho)).some((t) => t.includes("antes de você ser aceito")));
 // Leilão comum não aceita gente.
 const comum = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em)
   values ($1, 'Açúcar', 'acucar', 'graos', 'kg', 5, now() + interval '1 day') returning id`, [g.dona])).rows[0].id;

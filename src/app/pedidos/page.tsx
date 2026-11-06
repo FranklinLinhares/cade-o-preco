@@ -38,6 +38,7 @@ type GrupoPerto = {
   encerra_em: string;
   total_lances: number;
   minha_quantidade: number | null;
+  minha_situacao: string | null;
 };
 
 type LanceResumo = {
@@ -275,7 +276,7 @@ function GruposPerto({ grupos }: { grupos: GrupoPerto[] }) {
   return (
     <div className="cartao space-y-2 border-violet-300 bg-violet-50">
       <h2 className="font-semibold">Leilões em grupo perto de você</h2>
-      <p className="text-sm text-stone-600">Vizinhos a até 5 km estão juntando pedidos. Entre com a sua quantidade: com mais volume, o preço tende a cair.</p>
+      <p className="text-sm text-stone-600">Vizinhos a até 5 km estão juntando pedidos. Peça para entrar com a sua quantidade: com mais volume, o preço tende a cair.</p>
       <ul className="divide-y divide-violet-200">
         {grupos.map((g) => (
           <li key={g.id}>
@@ -287,7 +288,7 @@ function GruposPerto({ grupos }: { grupos: GrupoPerto[] }) {
                 </span>
               </span>
               <span className={g.minha_quantidade != null ? "text-sm font-medium text-violet-800" : "botao py-1 text-sm"}>
-                {g.minha_quantidade != null ? `Você está com ${g.minha_quantidade} ${g.unidade}` : "Quero também"}
+                {g.minha_situacao === "pedido" ? "Pedido enviado" : g.minha_quantidade != null ? `Você está com ${g.minha_quantidade} ${g.unidade}` : "Quero também"}
               </span>
             </Link>
           </li>

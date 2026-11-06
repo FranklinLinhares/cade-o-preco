@@ -9,7 +9,7 @@ import { Estrelas } from "@/components/Estrelas";
 import { buscarReputacao } from "@/lib/reputacao";
 import { buscarTelefones } from "@/lib/telefones";
 import { ConclusaoNegocio, type EstadoConclusao } from "@/components/ConclusaoNegocio";
-import { cancelarPedido, responderParticipante } from "../acoes";
+import { cancelarPedido, confirmarCompraGrupo, responderParticipante, responderPedidoGrupo } from "../acoes";
 import { trocarModo } from "@/app/cadastro/modo";
 import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { AoVivo } from "./AoVivo";
@@ -42,10 +42,18 @@ type Participante = {
   comprador_id: string;
   quantidade: number;
   entrou_em: string;
-  situacao: "no_grupo" | "aguardando" | "aceito" | "recusado";
+  situacao: "pedido" | "no_grupo" | "confirmar" | "desistiu" | "aguardando" | "aceito" | "recusado";
   comprador: { nome: string } | null;
 };
-const SITUACAO_GRUPO = { no_grupo: "", aguardando: "aguardando o vendedor", aceito: "vendedor aceitou", recusado: "vendedor recusou" };
+const SITUACAO_GRUPO = {
+  pedido: "quer entrar",
+  no_grupo: "",
+  confirmar: "ainda não confirmou a compra",
+  desistiu: "desistiu da compra",
+  aguardando: "confirmou, esperando o vendedor",
+  aceito: "vendedor aceitou",
+  recusado: "vendedor recusou",
+};
 type CompraDoLeilao = EstadoConclusao & { comprador_id: string; quantidade: number; comprador: { nome: string } | null };
 type Lance = {
   id: string;
@@ -98,6 +106,9 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
   const pessoasNoGrupo = grupo ? Number(grupo.participantes) : 0;
   const minhaParte = participantes.find((p) => p.comprador_id === empresa.id);
   const souParticipante = Boolean(minhaParte);
+  // Quem pediu para entrar e ainda espera quem criou aceitar não conta no grupo.
+  const pedidosParaEntrar = participantes.filter((p) => p.situacao === "pedido");
+  const doGrupo = participantes.filter((p) => p.situacao !== "pedido");
   const lances = (data ?? []) as Lance[];
   const precosOfertas = ((ofertas ?? []) as { produto_chave: string; unidade: Unidade; preco_unitario: number }[])
     .filter((o) => o.produto_chave === pedido.produto_chave && o.unidade === pedido.unidade)
@@ -202,6 +213,19 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
         <div className="cartao border-green-700 bg-green-50">
           <h2 className="font-semibold">Negócio fechado: {porUnidade(vencedor.preco_unitario, u)}</h2>
           <p>Fornecedor: {vencedor.fornecedor?.nome} ({vencedor.fornecedor?.cidade}) · <LinkWhatsApp telefone={telefones.get(vencedor.fornecedor_id)} /></p>
+          {minhaParte?.situacao === "confirmar" && (
+            <form action={confirmarCompraGrupo} className="mt-2 space-y-2 rounded-lg border border-green-300 bg-white p-3">
+              <input type="hidden" name="pedido" value={id} />
+              <p className="text-sm">
+                Quer comprar a sua parte, {minhaParte.quantidade} {u}, por <strong>{reais(Number(vencedor.preco_unitario) * Number(minhaParte.quantidade))}</strong> ({porUnidade(vencedor.preco_unitario, u)})?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button name="resposta" value="confirmar" className="botao py-1 text-sm">Confirmar compra</button>
+                <BotaoConfirmar name="resposta" value="desistir" className="botao-secundario py-1 text-sm" pergunta="Desistir desta compra? O vendedor é avisado e não dá para desfazer.">Desistir</BotaoConfirmar>
+              </div>
+            </form>
+          )}
+          {minhaParte?.situacao === "desistiu" && <p className="text-sm text-stone-600">Você desistiu da compra da sua parte.</p>}
           {minhaParte?.situacao === "aguardando" && (
             <p className="text-sm">Sua parte ({minhaParte.quantidade} {u}) está esperando {vencedor.fornecedor?.nome} aceitar vender. Avisamos quando ele responder.</p>
           )}
@@ -221,10 +245,10 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       {vencedor && souVencedor && (
         <div className="cartao space-y-3 border-green-700 bg-green-50">
           <h2 className="font-semibold">Você venceu! {porUnidade(vencedor.preco_unitario, u)}</h2>
-          {participantes.length > 0 && <p className="text-sm">Leilão em grupo: a compra de quem criou o leilão já está fechada. Aceite ou recuse vender para cada pessoa do grupo, e combine a entrega com quem você aceitar.</p>}
-          {participantes.filter((p) => p.situacao !== "aceito").length > 0 && (
+          {doGrupo.length > 0 && <p className="text-sm">Leilão em grupo: a compra de quem criou o leilão já está fechada. Cada pessoa do grupo confirma se quer comprar; aceite ou recuse vender para quem confirmou e combine a entrega com quem você aceitar.</p>}
+          {doGrupo.filter((p) => p.situacao !== "aceito").length > 0 && (
             <ul className="divide-y divide-green-200 rounded-lg border border-green-200 bg-white px-3">
-              {participantes.filter((p) => p.situacao !== "aceito").map((p) => {
+              {doGrupo.filter((p) => p.situacao !== "aceito").map((p) => {
                 const rep = reputacao.get(p.comprador_id);
                 return (
                   <li key={p.comprador_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
@@ -240,7 +264,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
                         <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario py-1 text-sm" pergunta={`Recusar vender para ${p.comprador?.nome ?? "este comprador"}? Ele é avisado e não dá para desfazer.`}>Recusar</BotaoConfirmar>
                       </form>
                     ) : (
-                      <span className="text-sm text-stone-500">Você recusou</span>
+                      <span className="text-sm text-stone-500">{p.situacao === "recusado" ? "Você recusou" : SITUACAO_GRUPO[p.situacao]}</span>
                     )}
                   </li>
                 );
@@ -262,16 +286,40 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       )}
 
       {pedido.aceita_participantes && !souComprador && aberto && empresa.papel === "comprador" && (
-        <QueroTambem pedido={id} unidade={u} minhaQuantidade={minhaParte ? Number(minhaParte.quantidade) : null} maximo={2 * Number(pedido.quantidade)} regraSaida={regraSaida} />
+        <QueroTambem pedido={id} unidade={u} minhaQuantidade={minhaParte ? Number(minhaParte.quantidade) : null} esperandoAceite={minhaParte?.situacao === "pedido"} maximo={2 * Number(pedido.quantidade)} regraSaida={regraSaida} />
       )}
       {souComprador && pedido.aceita_participantes && (
         <section className="cartao space-y-2 border-violet-300">
-          <h2 className="font-semibold">Leilão em grupo · {participantes.length === 0 ? "ninguém entrou ainda" : `${participantes.length + 1} pessoas, ${quantidadeTotal} ${u}`}</h2>
-          <p className="text-sm text-stone-600">Quem mora a até 5 km pode entrar com a própria quantidade. Os vendedores veem quem está no grupo. Quando você escolher o vencedor, a sua compra fecha na hora e ele aceita ou recusa vender para cada pessoa do grupo.</p>
-          {participantes.length > 0 && (
+          <h2 className="font-semibold">Leilão em grupo · {doGrupo.length === 0 ? "ninguém no grupo ainda" : `${doGrupo.length + 1} pessoas, ${quantidadeTotal} ${u}`}</h2>
+          <p className="text-sm text-stone-600">Quem mora a até 5 km pode pedir para entrar com a própria quantidade, e você escolhe quem participa. Os vendedores veem quem está no grupo. Quando você escolher o vencedor, a sua compra fecha na hora e cada pessoa do grupo confirma se quer comprar.</p>
+          {pedidosParaEntrar.length > 0 && aberto && (
+            <div className="space-y-1 rounded-lg border border-violet-300 bg-violet-50 p-3">
+              <p className="text-sm font-medium">Pedidos para entrar no grupo</p>
+              <ul className="divide-y divide-violet-200 text-sm">
+                {pedidosParaEntrar.map((p) => {
+                  const rep = reputacao.get(p.comprador_id);
+                  return (
+                    <li key={p.comprador_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                      <span>
+                        <Link href={`/perfil/${p.comprador_id}`} className="font-medium hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>{" "}
+                        <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {p.quantidade} {u}
+                      </span>
+                      <form action={responderPedidoGrupo} className="flex gap-2">
+                        <input type="hidden" name="pedido" value={id} />
+                        <input type="hidden" name="comprador" value={p.comprador_id} />
+                        <button name="resposta" value="aceitar" className="botao py-1 text-sm">Aceitar</button>
+                        <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario py-1 text-sm" pergunta={`Recusar ${p.comprador?.nome ?? "esta pessoa"} no grupo?`}>Recusar</BotaoConfirmar>
+                      </form>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {doGrupo.length > 0 && (
             <ul className="divide-y divide-stone-100 text-sm">
               <li className="flex justify-between py-1"><span>Você</span><span>{pedido.quantidade} {u}</span></li>
-              {participantes.map((p) => (
+              {doGrupo.map((p) => (
                 <li key={p.comprador_id} className="flex justify-between py-1">
                   <Link href={`/perfil/${p.comprador_id}`} className="hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>
                   <span>{p.quantidade} {u}{SITUACAO_GRUPO[p.situacao] && <span className="text-stone-500"> · {SITUACAO_GRUPO[p.situacao]}</span>}</span>
@@ -281,16 +329,16 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
           )}
         </section>
       )}
-      {!souComprador && !souParticipante && empresa.papel === "fornecedor" && aberto && participantes.length > 0 && (
+      {!souComprador && !souParticipante && empresa.papel === "fornecedor" && aberto && doGrupo.length > 0 && (
         <section className="cartao space-y-2 border-violet-300">
-          <h2 className="font-semibold">Quem está comprando · {participantes.length + 1} pessoas, {quantidadeTotal} {u}</h2>
-          <p className="text-sm text-stone-600">Se você vencer, a compra de quem criou o leilão fecha na hora. Depois você escolhe para quem do grupo aceita vender, no preço do seu lance.</p>
+          <h2 className="font-semibold">Quem está comprando · {doGrupo.length + 1} pessoas, {quantidadeTotal} {u}</h2>
+          <p className="text-sm text-stone-600">Se você vencer, a compra de quem criou o leilão fecha na hora. Cada pessoa do grupo confirma se quer comprar, e você escolhe para quem aceita vender, no preço do seu lance.</p>
           <ul className="divide-y divide-stone-100 text-sm">
             <li className="flex justify-between py-1">
               <span><Link href={`/perfil/${pedido.comprador_id}`} className="hover:underline">{pedido.comprador.nome}</Link> (criou o leilão)</span>
               <span>{pedido.quantidade} {u}</span>
             </li>
-            {participantes.map((p) => {
+            {doGrupo.map((p) => {
               const rep = reputacao.get(p.comprador_id);
               return (
                 <li key={p.comprador_id} className="flex justify-between gap-2 py-1">

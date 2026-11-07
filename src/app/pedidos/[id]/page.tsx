@@ -16,6 +16,7 @@ import { AoVivo } from "./AoVivo";
 import { DarLance } from "./DarLance";
 import { BotaoConfirmar } from "@/components/BotaoConfirmar";
 import { QueroTambem } from "./QueroTambem";
+import { Compartilhar } from "@/components/Compartilhar";
 
 type Pedido = {
   id: string;
@@ -200,6 +201,13 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
           {pedido.aceita_participantes && <> · <strong className="text-violet-800">Leilão em grupo</strong></>}
           {pedido.convidados && <> · Só para {pedido.convidados.length} fornecedor{pedido.convidados.length > 1 ? "es" : ""} convidado{pedido.convidados.length > 1 ? "s" : ""}</>}
         </p>
+        {souComprador && aberto && (
+          <Compartilhar
+            texto={`Estou comprando ${quantidadeTotal} ${u} de ${pedido.produto}. Dê seu lance no Cadê o Preço até ${dataHora(pedido.encerra_em)}:`}
+            caminho={`/pedidos/${pedido.id}`}
+            rotulo={pedido.convidados ? "Avisar os convidados no WhatsApp" : "Chamar fornecedores no WhatsApp"}
+          />
+        )}
       </div>
 
       {souComprador && pedido.referencia_preco && (

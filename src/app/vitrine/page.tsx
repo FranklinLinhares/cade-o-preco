@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { exigirEmpresa } from "@/lib/sessao";
+import { contaAtual, usuarioAtual } from "@/lib/sessao";
+import { VitrinePublica } from "./VitrinePublica";
 import { CATEGORIAS, PUBLICO, porUnidade, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
 import { SeloPreco } from "@/components/SeloPreco";
 import { mediaDasOfertas } from "@/lib/escudo";
@@ -36,13 +37,18 @@ type Oferta = {
 };
 
 export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
-  const { q, de, como } = await searchParams;
+  const { q, de, como, senha } = await searchParams;
   const termo = typeof q === "string" ? q.trim() : "";
   // Filtro do comprador: ofertas de empresas (CNPJ), de pessoas físicas (CPF) ou de todos.
   const origem = de === "pj" || de === "pf" ? de : "todos";
   // Filtro: ofertas que dá para comprar pelo app, promoções só na loja, ou todas.
   const modo = como === "app" || como === "loja" ? como : "todos";
-  const { supabase, empresa } = await exigirEmpresa();
+  const { supabase, empresa } = await contaAtual();
+  // Sem conta, a vitrine abre mesmo assim (o link de uma oferta chega pelo WhatsApp).
+  if (!empresa) {
+    if (await usuarioAtual()) redirect("/cadastro");
+    return <VitrinePublica supabase={supabase} termo={termo} />;
+  }
   // A Vitrine é para comprar; no modo Vender a pessoa vai para as próprias ofertas.
   if (empresa.papel !== "comprador") redirect("/ofertas");
   // Pedidos sem resposta em 2 dias devolvem o estoque; as buscas que dependem disso
@@ -98,6 +104,7 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Vitrine</h1>
+      {senha === "trocada" && <p className="aviso">Senha nova salva. Use ela da próxima vez que entrar.</p>}
       <form className="flex flex-wrap gap-2">
         <input name="q" defaultValue={termo} placeholder="Buscar produto: tomate, arroz, frango..." className="campo min-w-48 flex-1" />
         <select name="de" defaultValue={origem} aria-label="Ver ofertas de" className="campo w-auto">

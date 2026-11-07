@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { entrar, type EstadoEntrar } from "./acoes";
 
@@ -8,13 +9,16 @@ import { entrar, type EstadoEntrar } from "./acoes";
 // para que apertar Enter no celular faça sempre o que a aba diz.
 export default function Entrar() {
   const [estado, acao, enviando] = useActionState<EstadoEntrar, FormData>(entrar, {});
-  const [modo, setModo] = useState<"entrar" | "criar">("entrar");
-  const linkInvalido = useSearchParams().get("erro") === "confirmacao";
+  const parametros = useSearchParams();
+  const [modo, setModo] = useState<"entrar" | "criar">(parametros.get("modo") === "criar" ? "criar" : "entrar");
+  const linkInvalido = parametros.get("erro") === "confirmacao";
+  const volta = parametros.get("volta") ?? "";
   const criando = modo === "criar";
 
   return (
     <div className="mx-auto max-w-sm space-y-4">
       <h1 className="text-2xl font-bold">{criando ? "Criar conta no Cadê o Preço" : "Entrar no Cadê o Preço"}</h1>
+      {volta && <p className="text-stone-600">Entre ou crie sua conta grátis para continuar. Depois voltamos para a página que você abriu.</p>}
       <div role="tablist" className="grid grid-cols-2 rounded-lg border border-stone-300 bg-white p-1">
         {(["entrar", "criar"] as const).map((m) => (
           <button
@@ -31,6 +35,7 @@ export default function Entrar() {
       </div>
       <form action={acao} className="cartao space-y-4">
         <input type="hidden" name="modo" value={modo} />
+        <input type="hidden" name="volta" value={volta} />
         <div>
           <label className="rotulo" htmlFor="email">E-mail</label>
           <input id="email" name="email" type="email" required autoComplete="email" className="campo" />
@@ -46,7 +51,11 @@ export default function Entrar() {
             autoComplete={criando ? "new-password" : "current-password"}
             className="campo"
           />
-          {criando && <p className="mt-1 text-xs text-stone-500">Pelo menos 8 caracteres.</p>}
+          {criando ? (
+            <p className="mt-1 text-xs text-stone-500">Pelo menos 8 caracteres.</p>
+          ) : (
+            <Link href="/entrar/recuperar" className="mt-2 inline-block text-sm text-green-800 underline">Esqueci minha senha</Link>
+          )}
         </div>
         {linkInvalido && !estado.erro && !estado.mensagem && (
           <p className="aviso">O link de confirmação expirou ou já foi usado. Tente entrar com seu e-mail e senha.</p>

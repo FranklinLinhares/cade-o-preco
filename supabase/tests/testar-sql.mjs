@@ -595,4 +595,28 @@ await como(g.vizinho, `delete from avisos where id = $1`, [avisoDoVizinho]);
 assert.equal((await db.query(`select count(*) n from avisos where id = $1`, [avisoDoVizinho])).rows[0].n, 0, "apaga o próprio aviso");
 await falha(g.vizinho, `insert into avisos (empresa_id, texto, link) values ($1, 'x', '/')`, [g.vizinho], /permission denied/);
 
+// Vitrine aberta: visitante sem conta vê as ofertas abertas a todos, sem id nem
+// telefone de quem vende, e não vê as ofertas só para convidados.
+await db.exec(`grant usage on schema public to anon;`);
+// Grava direto, sem os gatilhos (o de convidados exige contato salvo).
+await db.exec(`set session_replication_role = replica;`);
+const soConvidados = (await db.query(`insert into ofertas (fornecedor_id, produto, produto_chave, categoria, unidade, preco_unitario, quantidade_disponivel, convidados)
+  values ($1, 'Tomate secreto', 'tomate-secreto', 'hortifruti', 'kg', 1, 10, array[$2]::uuid[]) returning id`, [ids.atacado, ids.restaurante])).rows[0].id;
+await db.exec(`set session_replication_role = origin;`);
+async function comoVisitante(sql, params = []) {
+  await db.exec(`set role anon; select set_config('test.uid', '', false);`);
+  try {
+    return await db.query(sql, params);
+  } finally {
+    await db.exec(`reset role;`);
+  }
+}
+const publicas = (await comoVisitante(`select * from vitrine_publica('tomate')`)).rows;
+assert.ok(publicas.some((o) => o.produto === "Tomate"), "visitante vê oferta aberta");
+assert.ok(!publicas.some((o) => o.id === soConvidados), "visitante não vê oferta só para convidados");
+assert.ok(!("fornecedor_id" in publicas[0]) && !("telefone_loja" in publicas[0]), "sem id nem telefone de quem vende");
+assert.equal((await comoVisitante(`select * from vitrine_publica(null, $1)`, [publicas[0].id])).rows.length, 1, "abre uma oferta pelo link");
+await assert.rejects(comoVisitante(`select * from vitrine_ofertas(null)`), /permission denied/);
+await assert.rejects(comoVisitante(`select * from ofertas`), /permission denied/);
+
 console.log("Todos os testes do banco passaram.");

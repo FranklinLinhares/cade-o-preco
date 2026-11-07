@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Compartilhar } from "@/components/Compartilhar";
 import { exigirEmpresa } from "@/lib/sessao";
 import { buscarTelefones } from "@/lib/telefones";
 import { CATEGORIAS, PUBLICO, dataHora, porUnidade, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
@@ -138,6 +139,14 @@ export default async function MinhasOfertas() {
                 </form>
               )}
               <ExcluirOferta id={o.id} />
+              {o.ativa && (
+                <Compartilhar
+                  texto={`${o.produto} a ${porUnidade(o.preco_unitario, o.unidade)} no Cadê o Preço. Veja e faça seu pedido:`}
+                  caminho={`/vitrine/${o.id}`}
+                  rotulo="Divulgar no WhatsApp"
+                  className="font-medium text-green-800 hover:underline"
+                />
+              )}
             </div>
           </li>
           );

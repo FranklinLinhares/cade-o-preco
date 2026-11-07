@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { exigirEmpresa } from "@/lib/sessao";
+import { notFound, redirect } from "next/navigation";
+import { contaAtual, usuarioAtual } from "@/lib/sessao";
+import { criarClienteServidor } from "@/lib/supabase/server";
 import { porUnidade, reais, type Unidade } from "@/lib/dominio";
+import { Compartilhar } from "@/components/Compartilhar";
+import type { OfertaPublica } from "../VitrinePublica";
 import { CartaoParte } from "@/components/CartaoParte";
 import { Comprar } from "../Comprar";
 
@@ -18,11 +22,37 @@ type Oferta = {
   so_na_loja: boolean;
 };
 
+async function buscarPublica(id: string) {
+  // Um id malformado faria o banco dar erro em vez de "não encontrada".
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase.rpc("vitrine_publica", { termo: null, p_oferta: id });
+  return ((data ?? []) as OfertaPublica[])[0] ?? null;
+}
+
+function textoDaOferta(o: { produto: string; preco_unitario: number; unidade: Unidade }) {
+  return `${o.produto} a ${porUnidade(o.preco_unitario, o.unidade)} no Cadê o Preço`;
+}
+
+// Prévia do link no WhatsApp: produto, preço e quem vende.
+export async function generateMetadata({ params }: PageProps<"/vitrine/[oferta]">): Promise<Metadata> {
+  const { oferta: id } = await params;
+  const oferta = await buscarPublica(id);
+  if (!oferta) return { title: "Oferta no Cadê o Preço" };
+  const titulo = textoDaOferta(oferta);
+  const descricao = `${oferta.fornecedor_nome}, ${oferta.cidade}/${oferta.uf}.${oferta.descricao ? ` ${oferta.descricao}` : ""}`;
+  return { title: titulo, description: descricao, openGraph: { title: titulo, description: descricao } };
+}
+
 // Confirmação da compra: mostra quem vende antes de fechar o negócio.
 export default async function ConfirmarCompra({ params, searchParams }: PageProps<"/vitrine/[oferta]">) {
   const { oferta: id } = await params;
   const { quantidade } = await searchParams;
-  const { supabase, empresa } = await exigirEmpresa();
+  const { supabase, empresa } = await contaAtual();
+  if (!empresa) {
+    if (await usuarioAtual()) redirect("/cadastro");
+    return <OfertaParaVisitante id={id} />;
+  }
 
   // A vitrine já filtra o que esta conta pode ver e comprar.
   const { data } = await supabase.rpc("vitrine_ofertas", { termo: null });
@@ -60,6 +90,7 @@ export default async function ConfirmarCompra({ params, searchParams }: PageProp
         {oferta.descricao && <p className="text-sm">{oferta.descricao}</p>}
       </div>
       <CartaoParte supabase={supabase} id={oferta.fornecedor_id} como="vendedor" />
+      <Compartilhar texto={textoDaOferta(oferta)} caminho={`/vitrine/${oferta.id}`} />
       {empresa.papel === "comprador" ? (
         <div className="cartao space-y-2">
           <p className="text-sm text-stone-600">
@@ -77,6 +108,59 @@ export default async function ConfirmarCompra({ params, searchParams }: PageProp
       ) : (
         <p className="aviso">Você está no modo Vender. Para comprar, troque para Comprar no menu.</p>
       )}
+    </div>
+  );
+}
+
+// Quem abriu o link sem conta vê a oferta e o caminho para criar a conta e comprar.
+async function OfertaParaVisitante({ id }: { id: string }) {
+  const oferta = await buscarPublica(id);
+  if (!oferta) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <h1 className="text-2xl font-bold">Oferta indisponível</h1>
+        <div className="cartao space-y-3">
+          <p className="text-stone-700">Esta oferta acabou, venceu ou é só para clientes convidados pelo vendedor.</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/vitrine" className="botao">Ver outras ofertas</Link>
+            <Link href={`/entrar?volta=/vitrine/${id}`} className="botao-secundario">Entrar</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  const u = oferta.unidade;
+  const volta = encodeURIComponent(`/vitrine/${oferta.id}`);
+  const entrar = `/entrar?volta=${volta}`;
+  return (
+    <div className="mx-auto max-w-2xl space-y-4">
+      <Link href="/vitrine" className="text-sm text-stone-500 hover:underline">← Ver todas as ofertas</Link>
+      <div className="cartao space-y-2">
+        <h1 className="text-2xl font-bold">{oferta.produto}</h1>
+        <p className="text-2xl font-bold text-green-800">{porUnidade(oferta.preco_unitario, u)}</p>
+        <p>
+          {oferta.fornecedor_nome} · {oferta.cidade}/{oferta.uf}
+          {oferta.agricultor && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Agricultura familiar</span>}
+        </p>
+        <p className="text-sm text-stone-500">
+          {(!oferta.so_na_loja || Number(oferta.quantidade_disponivel) > 0) && <>{oferta.quantidade_disponivel} {u} disponíveis · </>}
+          válida até {new Date(oferta.valida_ate).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}
+          {oferta.validade && <> · validade do produto {new Date(oferta.validade).toLocaleDateString("pt-BR")}</>}
+        </p>
+        {oferta.descricao && <p className="text-sm">{oferta.descricao}</p>}
+      </div>
+      <div className="cartao space-y-3">
+        <p className="text-stone-700">
+          {oferta.so_na_loja
+            ? "Esta é uma promoção para comprar direto na loja. Crie sua conta grátis para ver o WhatsApp da loja."
+            : "Para fazer o pedido, crie sua conta grátis. Depois voltamos para esta oferta e você só confirma a quantidade."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/entrar?modo=criar&volta=${volta}`} className="botao">{oferta.so_na_loja ? "Criar conta e ver o contato" : "Criar conta e comprar"}</Link>
+          <Link href={entrar} className="botao-secundario">Já tenho conta</Link>
+        </div>
+      </div>
+      <Compartilhar texto={textoDaOferta(oferta)} caminho={`/vitrine/${oferta.id}`} />
     </div>
   );
 }

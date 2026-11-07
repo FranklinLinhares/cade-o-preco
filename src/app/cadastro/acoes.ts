@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { mensagemDeErro } from "@/lib/erros";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { COOKIE_VOLTA, destinoSeguro } from "@/lib/volta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { EXIGIR_DOCUMENTO, cnpjValido, cpfValido, documentoDeTeste, soDigitos } from "@/lib/documentos";
 
@@ -77,6 +79,13 @@ export async function salvarEmpresa(_: EstadoCadastro, form: FormData): Promise<
   // O menu fica no layout e foi montado antes do cadastro; sem isso ele continua
   // vazio e a página seguinte abre pela metade.
   revalidatePath("/", "layout");
+  // No primeiro cadastro, volta para a oferta ou o leilão que trouxe a pessoa ao app.
+  if (!atual) {
+    const loja = await cookies();
+    const volta = destinoSeguro(loja.get(COOKIE_VOLTA)?.value);
+    loja.delete(COOKIE_VOLTA);
+    if (volta) redirect(volta);
+  }
   redirect(papel === "fornecedor" ? "/pedidos" : "/vitrine");
 }
 

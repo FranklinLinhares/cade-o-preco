@@ -1,7 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const ROTAS_PUBLICAS = ["/", "/entrar", "/auth/confirmar", "/diagnostico"];
+const ROTAS_PUBLICAS = ["/", "/entrar", "/entrar/recuperar", "/auth/confirmar", "/diagnostico"];
+
+// A vitrine e cada oferta abrem sem conta, para o link compartilhado no WhatsApp
+// mostrar a oferta antes de pedir cadastro.
+function publica(caminho: string) {
+  return ROTAS_PUBLICAS.includes(caminho) || caminho === "/vitrine" || caminho.startsWith("/vitrine/");
+}
 
 // Renova a sessão do Supabase a cada requisição e manda quem não está logado
 // para a tela de entrada.
@@ -56,9 +62,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (!user && !ROTAS_PUBLICAS.includes(request.nextUrl.pathname)) {
+  if (!user && !publica(request.nextUrl.pathname)) {
+    // Guarda a página pedida para voltar a ela depois de entrar.
     const url = request.nextUrl.clone();
     url.pathname = "/entrar";
+    url.search = "";
+    url.searchParams.set("volta", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
 

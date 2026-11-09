@@ -5,6 +5,7 @@ import { mensagemDeErro } from "@/lib/erros";
 import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados, ocultar } from "@/lib/ocultos";
 import { CATEGORIAS, UNIDADES, chaveDoProduto } from "@/lib/dominio";
+import { lerNumero } from "@/lib/numero";
 
 export type EstadoHistorico = { erro?: string; ok?: boolean };
 
@@ -14,8 +15,8 @@ export async function registrarCompraExterna(_: EstadoHistorico, form: FormData)
   const produto = String(form.get("produto") ?? "").trim();
   const categoria = String(form.get("categoria"));
   const unidade = String(form.get("unidade"));
-  const quantidade = Number(String(form.get("quantidade")).replace(",", "."));
-  const preco = Number(String(form.get("preco_unitario")).replace(",", "."));
+  const quantidade = lerNumero(String(form.get("quantidade")));
+  const preco = lerNumero(String(form.get("preco_unitario")));
   if (!produto || !(quantidade > 0) || !(preco > 0)) return { erro: "Preencha produto, quantidade e preço." };
   if (!(categoria in CATEGORIAS) || !(unidade in UNIDADES)) return { erro: "Escolha a categoria e a unidade." };
 

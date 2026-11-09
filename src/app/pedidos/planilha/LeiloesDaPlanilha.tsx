@@ -5,10 +5,11 @@ import { CATEGORIAS, UNIDADES, type Categoria, type Unidade } from "@/lib/domini
 import { Girando } from "@/components/Girando";
 import { lerPlanilhaLeiloes, type ItemLeilao } from "@/lib/planilha";
 import { criarLeiloes } from "../acoes";
+import { lerNumero } from "@/lib/numero";
 
 type Linha = ItemLeilao & { incluir: boolean };
 
-const numero = (v: string) => Number(v.replace(",", "."));
+const numero = (v: string) => lerNumero(v);
 
 export function LeiloesDaPlanilha() {
   const [linhas, setLinhas] = useState<Linha[]>();

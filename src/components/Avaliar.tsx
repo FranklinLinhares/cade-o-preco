@@ -12,7 +12,7 @@ export function Avaliar({ compra, nome }: { compra: string; nome: string }) {
     <form action={acao} className="space-y-2">
       <input type="hidden" name="compra" value={compra} />
       <input type="hidden" name="nota" value={nota} />
-      <div className="flex items-center gap-1" role="radiogroup" aria-label={`Nota para ${nome}`}>
+      <div className="flex items-center gap-0.5" role="radiogroup" aria-label={`Nota para ${nome}`}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
@@ -21,7 +21,7 @@ export function Avaliar({ compra, nome }: { compra: string; nome: string }) {
             aria-checked={nota === n}
             aria-label={`${n} estrela${n > 1 ? "s" : ""}`}
             onClick={() => setNota(n)}
-            className={`text-2xl leading-none ${n <= nota ? "text-amber-500" : "text-stone-300"}`}
+            className={`flex min-h-11 min-w-11 items-center justify-center text-3xl leading-none ${n <= nota ? "text-amber-500" : "text-stone-300"}`}
           >
             ★
           </button>

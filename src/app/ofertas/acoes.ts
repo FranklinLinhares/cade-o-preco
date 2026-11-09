@@ -7,6 +7,7 @@ import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados } from "@/lib/ocultos";
 import { CATEGORIAS, PUBLICO, UNIDADES, chaveDoProduto } from "@/lib/dominio";
 import { lerConvidados } from "@/lib/contatos";
+import { lerNumero } from "@/lib/numero";
 
 export type EstadoOferta = { erro?: string };
 
@@ -15,11 +16,11 @@ function lerCampos(form: FormData) {
   const produto = String(form.get("produto") ?? "").trim();
   const categoria = String(form.get("categoria"));
   const unidade = String(form.get("unidade"));
-  const preco = Number(String(form.get("preco_unitario")).replace(",", "."));
+  const preco = lerNumero(String(form.get("preco_unitario")));
   const soNaLoja = form.get("como_vender") === "loja";
   const textoQuantidade = String(form.get("quantidade_disponivel") ?? "").trim();
   // Na promoção só na loja o estoque é opcional; em branco fica 0.
-  const quantidade = soNaLoja && !textoQuantidade ? 0 : Number(textoQuantidade.replace(",", "."));
+  const quantidade = soNaLoja && !textoQuantidade ? 0 : lerNumero(textoQuantidade);
   const vendePara = String(form.get("vende_para"));
 
   if (!produto) return { erro: "Informe o produto." };

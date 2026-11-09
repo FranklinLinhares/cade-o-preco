@@ -8,6 +8,7 @@ import { Compartilhar } from "@/components/Compartilhar";
 import type { OfertaPublica } from "../VitrinePublica";
 import { CartaoParte } from "@/components/CartaoParte";
 import { Comprar } from "../Comprar";
+import { lerNumero } from "@/lib/numero";
 
 type Oferta = {
   id: string;
@@ -76,7 +77,7 @@ export default async function ConfirmarCompra({ params, searchParams }: PageProp
     );
   }
 
-  const pedida = Number(String(quantidade ?? "").replace(",", "."));
+  const pedida = lerNumero(String(quantidade ?? ""));
   const qtd = pedida > 0 ? Math.min(pedida, Number(oferta.quantidade_disponivel)) : Math.min(1, Number(oferta.quantidade_disponivel));
 
   return (

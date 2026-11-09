@@ -5,6 +5,7 @@ import { mensagemDeErro } from "@/lib/erros";
 import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados, ocultar } from "@/lib/ocultos";
 import { CATEGORIAS, type Categoria } from "@/lib/dominio";
+import { lerNumero } from "@/lib/numero";
 
 export type EstadoCompra = { erro?: string; ok?: string };
 
@@ -12,7 +13,8 @@ export type EstadoCompra = { erro?: string; ok?: string };
 export async function comprarOferta(_: EstadoCompra, form: FormData): Promise<EstadoCompra> {
   const { supabase } = await exigirEmpresa();
   await supabase.rpc("expirar_reservas"); // libera o estoque de pedidos esquecidos antes de reservar
-  const quantidade = Number(String(form.get("quantidade")).replace(",", "."));
+  const quantidade = lerNumero(String(form.get("quantidade")));
+  if (!(quantidade > 0)) return { erro: "Informe uma quantidade maior que zero, por exemplo 2 ou 1,5." };
   const { error } = await supabase.rpc("reservar_oferta", {
     p_oferta: String(form.get("oferta")),
     p_quantidade: quantidade,

@@ -4,13 +4,14 @@ import { useActionState, useState } from "react";
 import { darLance, type EstadoForm } from "../acoes";
 import { compararComMedia, type MediaMercado } from "@/lib/escudo";
 import { porUnidade, UNIDADES, type Unidade } from "@/lib/dominio";
+import { lerNumero } from "@/lib/numero";
 
 const CORES = { abaixo: "text-green-800", media: "text-stone-600", acima: "text-red-800" };
 
 export function DarLance({ pedido, unidade, dica, mercado }: { pedido: string; unidade: Unidade; dica: string; mercado: MediaMercado | null }) {
   const [estado, acao, enviando] = useActionState<EstadoForm, FormData>(darLance, {});
   const [preco, setPreco] = useState("");
-  const selo = mercado && compararComMedia(Number(preco.replace(",", ".")), mercado.media);
+  const selo = mercado && compararComMedia(lerNumero(preco), mercado.media);
   return (
     <form action={acao} className="cartao space-y-3">
       <h2 className="font-semibold">Dar lance</h2>

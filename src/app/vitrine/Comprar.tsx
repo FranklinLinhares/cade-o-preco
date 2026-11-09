@@ -21,10 +21,10 @@ export function Comprar({ oferta, maximo, unidade, fornecedor, quantidade }: { o
       <input type="hidden" name="oferta" value={oferta} />
       <label className="flex items-center gap-1">
         Quantidade
-        <input name="quantidade" type="number" step="any" min={0} max={maximo} required defaultValue={quantidade ?? Math.min(1, maximo)} className="campo w-24 py-1" />
+        <input name="quantidade" inputMode="decimal" autoComplete="off" required defaultValue={String(quantidade ?? Math.min(1, maximo)).replace(".", ",")} className="campo w-24" />
         {unidade}
       </label>
-      <button disabled={enviando} className="botao py-1">{enviando ? "Enviando..." : "Enviar pedido ao vendedor"}</button>
+      <button disabled={enviando} className="botao min-h-11">{enviando ? "Enviando..." : "Enviar pedido ao vendedor"}</button>
       {estado.erro && <span className="text-red-700">{estado.erro}</span>}
     </form>
   );

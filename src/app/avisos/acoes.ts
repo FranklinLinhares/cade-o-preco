@@ -6,6 +6,7 @@ import { idsMarcados } from "@/lib/ocultos";
 import { mensagemDeErro } from "@/lib/erros";
 import { exigirEmpresa } from "@/lib/sessao";
 import { UNIDADES, chaveDoProduto } from "@/lib/dominio";
+import { lerNumero } from "@/lib/numero";
 
 export async function marcarTodosLidos() {
   const { supabase, empresa } = await exigirEmpresa();
@@ -37,7 +38,7 @@ export async function criarAlerta(_: EstadoAlerta, form: FormData): Promise<Esta
   const { supabase, empresa } = await exigirEmpresa();
   const produto = String(form.get("produto") ?? "").trim();
   const unidade = String(form.get("unidade"));
-  const preco = Number(String(form.get("preco_maximo")).replace(",", "."));
+  const preco = lerNumero(String(form.get("preco_maximo")));
   if (!produto) return { erro: "Informe o produto." };
   if (!(unidade in UNIDADES)) return { erro: "Escolha a unidade." };
   if (!(preco > 0)) return { erro: "Informe o preço máximo." };

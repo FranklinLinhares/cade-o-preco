@@ -7,11 +7,12 @@ import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados, ocultar } from "@/lib/ocultos";
 import { CATEGORIAS, UNIDADES, chaveDoProduto, reais, type ReferenciaPreco, type Unidade } from "@/lib/dominio";
 import { lerConvidados } from "@/lib/contatos";
+import { lerNumero } from "@/lib/numero";
 
 export type EstadoForm = { erro?: string; ok?: string };
 
 const numero = (v: FormDataEntryValue | null) => {
-  const n = Number(String(v ?? "").replace(",", "."));
+  const n = lerNumero(String(v ?? ""));
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 

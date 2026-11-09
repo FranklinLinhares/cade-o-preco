@@ -7,6 +7,7 @@ import { publicarFolheto } from "../acoes";
 import { MAXIMO_ENVIO, MAXIMO_PAGINAS, fotoParaJpeg, pdfParaJpegs } from "./paginas";
 import { lerPlanilha } from "@/lib/planilha";
 import { mensagemDaTela } from "@/lib/erros";
+import { lerNumero } from "@/lib/numero";
 
 type Arquivo = { tipo: "image/jpeg"; base64: string; nome: string };
 type Linha = {
@@ -138,8 +139,8 @@ export function LerFolheto({ comIa }: { comIa: boolean }) {
           descricao: l.descricao,
           categoria: l.categoria,
           unidade: l.unidade,
-          preco_unitario: Number(l.preco_unitario.replace(",", ".")),
-          quantidade_disponivel: Number(l.quantidade_disponivel.replace(",", ".")),
+          preco_unitario: lerNumero(l.preco_unitario),
+          quantidade_disponivel: lerNumero(l.quantidade_disponivel),
         })),
       });
       if (resultado?.erro) setErro(resultado.erro);
@@ -257,8 +258,8 @@ export function LerFolheto({ comIa }: { comIa: boolean }) {
             <label className="flex items-center gap-2 font-medium">
               <input type="checkbox" checked={l.incluir} onChange={(e) => mudar(i, { incluir: e.target.checked })} />
               Publicar
-              {l.incluir && Number(l.preco_unitario.replace(",", ".")) > 0 && (
-                <span className="ml-auto text-sm font-normal text-stone-500">{porUnidade(Number(l.preco_unitario.replace(",", ".")), l.unidade)}</span>
+              {l.incluir && lerNumero(l.preco_unitario) > 0 && (
+                <span className="ml-auto text-sm font-normal text-stone-500">{porUnidade(lerNumero(l.preco_unitario), l.unidade)}</span>
               )}
             </label>
             <div className="grid gap-2 sm:grid-cols-2">

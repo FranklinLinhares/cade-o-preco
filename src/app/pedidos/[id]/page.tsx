@@ -15,6 +15,7 @@ import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 import { AoVivo } from "./AoVivo";
 import { DarLance } from "./DarLance";
 import { BotaoConfirmar } from "@/components/BotaoConfirmar";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { QueroTambem } from "./QueroTambem";
 import { Compartilhar } from "@/components/Compartilhar";
 
@@ -229,9 +230,9 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
               <p className="text-sm">
                 Quer comprar a sua parte, {minhaParte.quantidade} {u}, por <strong>{reais(Number(vencedor.preco_unitario) * Number(minhaParte.quantidade))}</strong> ({porUnidade(vencedor.preco_unitario, u)})?
               </p>
-              <div className="flex flex-wrap gap-2">
-                <button name="resposta" value="confirmar" className="botao py-1 text-sm">Confirmar compra</button>
-                <BotaoConfirmar name="resposta" value="desistir" className="botao-secundario py-1 text-sm" pergunta="Desistir desta compra? O vendedor é avisado e não dá para desfazer.">Desistir</BotaoConfirmar>
+              <div className="flex flex-wrap gap-3">
+                <BotaoEnviar name="resposta" value="confirmar" className="botao min-h-11 text-sm">Confirmar compra</BotaoEnviar>
+                <BotaoConfirmar name="resposta" value="desistir" className="botao-secundario min-h-11 text-sm" pergunta="Desistir desta compra? O vendedor é avisado e não dá para desfazer.">Desistir</BotaoConfirmar>
               </div>
             </form>
           )}
@@ -267,11 +268,11 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
                       <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {p.quantidade} {u} · {reais(Number(vencedor.preco_unitario) * Number(p.quantidade))}
                     </span>
                     {p.situacao === "aguardando" ? (
-                      <form action={responderParticipante} className="flex gap-2">
+                      <form action={responderParticipante} className="flex gap-3">
                         <input type="hidden" name="pedido" value={id} />
                         <input type="hidden" name="comprador" value={p.comprador_id} />
-                        <button name="resposta" value="aceitar" className="botao py-1 text-sm">Aceitar</button>
-                        <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario py-1 text-sm" pergunta={`Recusar vender para ${p.comprador?.nome ?? "este comprador"}? Ele é avisado e não dá para desfazer.`}>Recusar</BotaoConfirmar>
+                        <BotaoEnviar name="resposta" value="aceitar" className="botao min-h-11 text-sm">Aceitar</BotaoEnviar>
+                        <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario min-h-11 text-sm" pergunta={`Recusar vender para ${p.comprador?.nome ?? "este comprador"}? Ele é avisado e não dá para desfazer.`}>Recusar</BotaoConfirmar>
                       </form>
                     ) : (
                       <span className="text-sm text-stone-500">{p.situacao === "recusado" ? "Você recusou" : SITUACAO_GRUPO[p.situacao]}</span>
@@ -314,11 +315,11 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
                         <Link href={`/perfil/${p.comprador_id}`} className="font-medium hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>{" "}
                         <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {p.quantidade} {u}
                       </span>
-                      <form action={responderPedidoGrupo} className="flex gap-2">
+                      <form action={responderPedidoGrupo} className="flex gap-3">
                         <input type="hidden" name="pedido" value={id} />
                         <input type="hidden" name="comprador" value={p.comprador_id} />
-                        <button name="resposta" value="aceitar" className="botao py-1 text-sm">Aceitar</button>
-                        <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario py-1 text-sm" pergunta={`Recusar ${p.comprador?.nome ?? "esta pessoa"} no grupo?`}>Recusar</BotaoConfirmar>
+                        <BotaoEnviar name="resposta" value="aceitar" className="botao min-h-11 text-sm">Aceitar</BotaoEnviar>
+                        <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario min-h-11 text-sm" pergunta={`Recusar ${p.comprador?.nome ?? "esta pessoa"} no grupo?`}>Recusar</BotaoConfirmar>
                       </form>
                     </li>
                   );
@@ -373,7 +374,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
           <span>Você está no modo Comprar. Para dar lance neste leilão, mude para Vender.</span>
           <input type="hidden" name="papel" value="fornecedor" />
           <input type="hidden" name="voltar" value={`/pedidos/${id}`} />
-          <button className="botao py-1">Mudar para Vender</button>
+          <BotaoEnviar className="botao min-h-11">Mudar para Vender</BotaoEnviar>
         </form>
       )}
 
@@ -404,7 +405,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
                 </div>
                 {souComprador && (pedido.status === "aberto" || pedido.status === "encerrado") && (
                   // Escolher leva à confirmação, que mostra quem é o fornecedor antes de fechar.
-                  <Link href={`/pedidos/${id}/fechar?lance=${l.id}`} className={i === 0 ? "botao py-1" : "botao-secundario py-1"}>Escolher</Link>
+                  <Link href={`/pedidos/${id}/fechar?lance=${l.id}`} className={i === 0 ? "botao min-h-11" : "botao-secundario min-h-11"}>Escolher</Link>
                 )}
               </li>
             );

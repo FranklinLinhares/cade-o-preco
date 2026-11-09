@@ -11,7 +11,8 @@ export function BarraSelecao({
   rotulo = "Excluir",
 }: {
   id: string;
-  acao: (form: FormData) => Promise<void>;
+  // Pode devolver um texto para avisar a pessoa (ex.: o que não deu para excluir).
+  acao: (form: FormData) => Promise<void | string>;
   confirmar: string;
   rotulo?: string;
 }) {
@@ -49,7 +50,8 @@ export function BarraSelecao({
       action={async (form) => {
         setEnviando(true);
         try {
-          await acao(form);
+          const aviso = await acao(form);
+          if (aviso) alert(aviso);
         } finally {
           setEnviando(false);
           setMarcados(0);

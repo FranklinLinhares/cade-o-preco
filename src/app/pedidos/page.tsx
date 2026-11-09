@@ -41,6 +41,12 @@ type GrupoPerto = {
   minha_situacao: string | null;
 };
 
+type Participacao = {
+  situacao: "pedido" | "no_grupo" | "confirmar" | "aguardando" | "aceito";
+  quantidade: number;
+  pedido: { id: string; produto: string; unidade: Unidade; status: string; encerra_em: string };
+};
+
 type LanceResumo = {
   id: string;
   pedido_id: string;
@@ -86,7 +92,28 @@ export default async function Pedidos() {
     const { data } = await supabase.rpc("grupos_proximos");
     return (data ?? []) as GrupoPerto[];
   };
-  const [leiloes, ocultos, gruposPerto] = await Promise.all([buscarLeiloes(), buscarOcultos(supabase, "pedido"), buscarGrupos()]);
+  // Modo Comprar: leilões em grupo de outras pessoas em que a conta entrou. Depois
+  // que fecham, somem dos "grupos perto", e quem participa precisa achar o leilão
+  // para confirmar a compra.
+  const buscarParticipacoes = async (): Promise<Participacao[]> => {
+    if (vendendo) return [];
+    const { data } = await supabase
+      .from("pedido_participantes")
+      .select("situacao, quantidade, pedido:pedidos!inner(id, produto, unidade, status, encerra_em)")
+      .eq("comprador_id", empresa.id)
+      .not("situacao", "in", "(desistiu,recusado)")
+      .returns<Participacao[]>();
+    return (data ?? []) as Participacao[];
+  };
+  const [leiloes, ocultos, gruposPerto, participacoesTodas] = await Promise.all([
+    buscarLeiloes(),
+    buscarOcultos(supabase, "pedido"),
+    buscarGrupos(),
+    buscarParticipacoes(),
+  ]);
+  // Os abertos já aparecem em "Leilões em grupo perto de você".
+  const idsPerto = new Set(gruposPerto.map((g) => g.id));
+  const participacoes = participacoesTodas.filter((p) => !idsPerto.has(p.pedido.id));
   let paraLance = vendendo ? leiloes : [];
   let meusLeiloes = vendendo ? [] : leiloes;
   paraLance = paraLance.filter((p) => !ocultos.has(p.id));
@@ -144,6 +171,7 @@ export default async function Pedidos() {
           <>
             <p className="text-sm text-stone-500">Crie um leilão e os fornecedores próximos disputam pelo menor preço. Para dar lances em leilões de outras pessoas, mude para Vender no menu.</p>
             {gruposPerto.length > 0 && <GruposPerto grupos={gruposPerto} />}
+            {participacoes.length > 0 && <MinhasParticipacoes participacoes={participacoes} />}
             {meusLeiloes.length === 0 && <p className="text-stone-600">Você ainda não criou leilões.</p>}
             <BarraSelecao id="excluir-leiloes" acao={excluirLeiloes} confirmar="Excluir {n} leilão(ões)? Os que ainda estão abertos são cancelados e os fornecedores não podem mais dar lance." />
             <PorCategoria pedidos={meusLeiloes} vendendo={false} lances={lances} eu={empresa.id} />
@@ -289,6 +317,38 @@ function GruposPerto({ grupos }: { grupos: GrupoPerto[] }) {
               </span>
               <span className={g.minha_quantidade != null ? "text-sm font-medium text-violet-800" : "botao py-1 text-sm"}>
                 {g.minha_situacao === "pedido" ? "Pedido enviado" : g.minha_quantidade != null ? `Você está com ${g.minha_quantidade} ${g.unidade}` : "Quero também"}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const TEXTO_PARTICIPACAO: Record<Participacao["situacao"], string> = {
+  pedido: "Esperando quem criou aceitar",
+  no_grupo: "Você está no grupo",
+  confirmar: "Confirme a sua compra",
+  aguardando: "Esperando o vendedor aceitar",
+  aceito: "Compra aceita",
+};
+
+// Leilões em grupo de outras pessoas em que você entrou e que já não estão
+// abertos perto de você (por exemplo, já fecharam e pedem a sua confirmação).
+function MinhasParticipacoes({ participacoes }: { participacoes: Participacao[] }) {
+  return (
+    <div className="cartao space-y-2 border-violet-300 bg-violet-50">
+      <h2 className="font-semibold">Leilões em grupo em que você entrou</h2>
+      <ul className="divide-y divide-violet-200">
+        {participacoes.map((p) => (
+          <li key={p.pedido.id}>
+            <Link href={`/pedidos/${p.pedido.id}`} className="flex flex-wrap items-baseline justify-between gap-2 py-3 hover:text-green-800">
+              <span>
+                <span className="font-semibold">{p.pedido.produto}</span> · sua parte: {p.quantidade} {p.pedido.unidade}
+              </span>
+              <span className={p.situacao === "confirmar" && p.pedido.status !== "cancelado" ? "botao py-1 text-sm" : "text-sm font-medium text-violet-800"}>
+                {p.pedido.status === "cancelado" ? "Leilão cancelado" : TEXTO_PARTICIPACAO[p.situacao]}
               </span>
             </Link>
           </li>

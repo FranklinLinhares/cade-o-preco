@@ -518,6 +518,7 @@ await db.query(`update pedidos set encerra_em = now() + interval '1 hour' where 
 await falha(g.vizinho, `select sair_do_grupo($1)`, [grupo], /menos de 2 horas/);
 await falha(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupo], /menos de 2 horas/);
 await como(g.vizinho, `select entrar_no_grupo($1, 18)`, [grupo]); // aumentar pode
+assert.ok((await avisos(g.dona)).some((t) => t.includes("José aumentou a quantidade") && t.includes("de 15 para 18")), "quem criou sabe do aumento");
 // Com participante e lance, quem criou não cancela mais.
 await como(g.dona, `update pedidos set status = 'cancelado' where id = $1`, [grupo]);
 assert.equal((await db.query(`select status from pedidos where id = $1`, [grupo])).rows[0].status, "aberto");
@@ -595,6 +596,14 @@ await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [sigiloso]);
 assert.equal((await como(g.vizinho, `select * from lances where pedido_id = $1`, [sigiloso])).rows.length, 0, "quem só pediu para entrar não vê lances fechados");
 await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [sigiloso, g.vizinho]);
 assert.equal((await como(g.vizinho, `select * from lances where pedido_id = $1`, [sigiloso])).rows.length, 1, "aceito no grupo vê os lances");
+// Quem ainda espera ser aceito pode diminuir mesmo perto do fim (cancelar também pode).
+const quaseNoFim = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
+  values ($1, 'Vinagre', 'vinagre', 'graos', 'l', 5, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
+await como(g.vendedor, `select dar_lance($1, 3)`, [quaseNoFim]);
+await como(g.vizinho, `select entrar_no_grupo($1, 6)`, [quaseNoFim]);
+await db.query(`update pedidos set encerra_em = now() + interval '1 hour' where id = $1`, [quaseNoFim]);
+await como(g.vizinho, `select entrar_no_grupo($1, 4)`, [quaseNoFim]);
+assert.equal(Number((await db.query(`select quantidade from pedido_participantes where pedido_id = $1`, [quaseNoFim])).rows[0].quantidade), 4, "pedido pendente diminui perto do fim");
 // Leilão em grupo só para convidados: quem está longe e não foi convidado não lê o leilão.
 // Grava direto, sem os gatilhos (o de convidados exige contato salvo).
 await db.exec(`set session_replication_role = replica;`);

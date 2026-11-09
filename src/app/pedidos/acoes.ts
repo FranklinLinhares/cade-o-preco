@@ -149,13 +149,27 @@ export async function cancelarPedido(form: FormData) {
 
 // Tira os leilões marcados da sua lista. Um leilão seu ainda aberto é cancelado
 // antes, para os fornecedores pararem de dar lance.
-export async function excluirLeiloes(form: FormData) {
+// Leilão em grupo com lance e outras pessoas contando com ele não pode ser
+// cancelado: fica na lista, para quem criou ainda escolher o vencedor.
+export async function excluirLeiloes(form: FormData): Promise<string | void> {
   const { supabase, empresa } = await exigirEmpresa();
   const ids = idsMarcados(form);
   if (ids.length === 0) return;
   await supabase.from("pedidos").update({ status: "cancelado" }).in("id", ids).eq("comprador_id", empresa.id).eq("status", "aberto");
-  await ocultar(supabase, "pedido", ids);
+  const { data: travados } = await supabase
+    .from("pedidos")
+    .select("id")
+    .in("id", ids)
+    .eq("comprador_id", empresa.id)
+    .eq("status", "aberto");
+  const ficam = new Set((travados ?? []).map((p) => p.id as string));
+  await ocultar(supabase, "pedido", ids.filter((id) => !ficam.has(id)));
   revalidatePath("/pedidos");
+  if (ficam.size > 0) {
+    return ficam.size === 1
+      ? "1 leilão em grupo não foi excluído: ele já tem lance e outras pessoas contando com ele. Abra o leilão para escolher o vencedor."
+      : `${ficam.size} leilões em grupo não foram excluídos: eles já têm lance e outras pessoas contando com eles. Abra cada um para escolher o vencedor.`;
+  }
 }
 
 export type ItemLeilaoNovo = {

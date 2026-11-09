@@ -587,6 +587,26 @@ const comum = (await como(g.dona, `insert into pedidos (comprador_id, produto, p
   values ($1, 'Açúcar', 'acucar', 'graos', 'kg', 5, now() + interval '1 day') returning id`, [g.dona])).rows[0].id;
 await falha(g.vizinho, `select entrar_no_grupo($1, 5)`, [comum], /não aceita/);
 
+// Lances fechados: quem só pediu para entrar não vê os lances; depois de aceito, vê.
+const sigiloso = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes, lances_visiveis)
+  values ($1, 'Óleo', 'oleo', 'graos', 'l', 5, now() + interval '1 day', true, false) returning id`, [g.dona])).rows[0].id;
+await como(g.vendedor, `select dar_lance($1, 7)`, [sigiloso]);
+await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [sigiloso]);
+assert.equal((await como(g.vizinho, `select * from lances where pedido_id = $1`, [sigiloso])).rows.length, 0, "quem só pediu para entrar não vê lances fechados");
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [sigiloso, g.vizinho]);
+assert.equal((await como(g.vizinho, `select * from lances where pedido_id = $1`, [sigiloso])).rows.length, 1, "aceito no grupo vê os lances");
+// Leilão em grupo só para convidados: quem está longe e não foi convidado não lê o leilão.
+// Grava direto, sem os gatilhos (o de convidados exige contato salvo).
+await db.exec(`set session_replication_role = replica;`);
+const grupoConvite = (await db.query(`insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes, convidados)
+  values ($1, 'Farinha', 'farinha', 'graos', 'kg', 5, now() + interval '1 day', true, array[$2]::uuid[]) returning id`, [g.dona, g.vendedor])).rows[0].id;
+await db.exec(`set session_replication_role = origin;`);
+const leGrupo = async (uid) => (await como(uid, `select id from pedidos where id = $1`, [grupoConvite])).rows.length;
+assert.equal(await leGrupo(g.longe), 0, "quem está longe não lê leilão em grupo só para convidados");
+assert.equal(await leGrupo(ids.agricultor), 0, "vendedor não convidado não lê");
+assert.equal(await leGrupo(g.vizinho), 1, "vizinho (pode entrar) lê");
+assert.equal(await leGrupo(g.vendedor), 1, "convidado lê");
+
 // Cada conta exclui os próprios avisos, e só os seus.
 const avisoDoVizinho = (await db.query(`select id from avisos where empresa_id = $1 limit 1`, [g.vizinho])).rows[0].id;
 await como(g.dona, `delete from avisos where id = $1`, [avisoDoVizinho]);
@@ -617,6 +637,7 @@ assert.ok(!publicas.some((o) => o.id === soConvidados), "visitante não vê ofer
 assert.ok(!("fornecedor_id" in publicas[0]) && !("telefone_loja" in publicas[0]), "sem id nem telefone de quem vende");
 assert.equal((await comoVisitante(`select * from vitrine_publica(null, $1)`, [publicas[0].id])).rows.length, 1, "abre uma oferta pelo link");
 await assert.rejects(comoVisitante(`select * from vitrine_ofertas(null)`), /permission denied/);
+await assert.rejects(comoVisitante(`select pode_ver_grupo($1, $2)`, [grupoConvite, g.dona]), /permission denied/);
 await assert.rejects(comoVisitante(`select * from ofertas`), /permission denied/);
 
 console.log("Todos os testes do banco passaram.");

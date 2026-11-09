@@ -81,13 +81,22 @@ export default async function MinhasOfertas() {
         {ofertas.map((o) => {
           const pedido = pedidos.get(o.id);
           const vendido = o.compras.reduce((t, c) => t + Number(c.quantidade), 0);
-          const borda = pedido ? BORDA_CARTAO.pedido : vendido > 0 ? BORDA_CARTAO.aceito : "";
+          // Prazo passou: a oferta saiu da vitrine, mesmo que ainda conste como ativa.
+          const vencida = new Date(o.valida_ate) < new Date();
+          const naVitrine = o.ativa && !vencida;
+          const borda = pedido ? BORDA_CARTAO.pedido : vencida ? BORDA_CARTAO.vencida : vendido > 0 ? BORDA_CARTAO.aceito : "";
           return (
-          <li key={o.id} className={`cartao space-y-2 ${borda} ${o.ativa || pedido ? "" : "opacity-60"}`}>
+          <li key={o.id} className={`cartao space-y-2 ${borda} ${naVitrine || pedido || vencida ? "" : "opacity-60"}`}>
             {pedido && (
               <Situacao tom="pedido">
                 {pedido.n === 1 ? "1 pedido de compra" : `${pedido.n} pedidos de compra`} esperando sua resposta ({pedido.quantidade} {o.unidade})
                 <Link href="/negocios" className="botao ml-auto py-1 text-sm">Responder</Link>
+              </Situacao>
+            )}
+            {vencida && (
+              <Situacao tom="vencida">
+                Oferta vencida em {dataHora(o.valida_ate)}: não aparece mais na vitrine
+                <Link href={`/ofertas/${o.id}/editar`} className="ml-auto rounded-lg bg-rose-700 px-3 py-1 text-sm font-semibold text-white hover:bg-rose-800">Publicar de novo</Link>
               </Situacao>
             )}
             {vendido > 0 && (
@@ -112,7 +121,7 @@ export default async function MinhasOfertas() {
               </div>
               <div className="text-lg font-bold text-green-800">{porUnidade(o.preco_unitario, o.unidade)}</div>
             </div>
-            {o.ativa && interessados[o.produto_chave] > 0 && (
+            {naVitrine && interessados[o.produto_chave] > 0 && (
               <p className="aviso">
                 {interessados[o.produto_chave]} comprador(es) perto de você têm leilão aberto para este produto.{" "}
                 <Link href="/pedidos" className="underline">Ver leilões</Link>
@@ -130,16 +139,16 @@ export default async function MinhasOfertas() {
             )}
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <Link href={`/ofertas/${o.id}/editar`} className="font-medium text-green-800 hover:underline">
-                {o.ativa ? "Editar" : "Editar e publicar de novo"}
+                {naVitrine ? "Editar" : "Editar e publicar de novo"}
               </Link>
-              {o.ativa && (
+              {naVitrine && (
                 <form action={encerrarOferta}>
                   <input type="hidden" name="id" value={o.id} />
                   <button className="text-stone-600 hover:underline">Encerrar oferta</button>
                 </form>
               )}
               <ExcluirOferta id={o.id} />
-              {o.ativa && (
+              {naVitrine && (
                 <Compartilhar
                   texto={`${o.produto} a ${porUnidade(o.preco_unitario, o.unidade)} no Cadê o Preço. Veja e faça seu pedido:`}
                   caminho={`/vitrine/${o.id}`}

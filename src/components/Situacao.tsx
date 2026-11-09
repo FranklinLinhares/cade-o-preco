@@ -7,6 +7,7 @@ const TONS = {
   recusado: { cor: "border-red-500 bg-red-50 text-red-900", icone: "✖" },
   cancelado: { cor: "border-stone-400 bg-stone-100 text-stone-700", icone: "↩" },
   loja: { cor: "border-violet-500 bg-violet-50 text-violet-950", icone: "🏪" },
+  vencida: { cor: "border-rose-600 bg-rose-100 text-rose-950", icone: "⌛" },
 };
 
 export type TomSituacao = keyof typeof TONS;
@@ -30,4 +31,5 @@ export const BORDA_CARTAO: Record<TomSituacao, string> = {
   recusado: "",
   cancelado: "",
   loja: "",
+  vencida: "border-2 border-rose-600",
 };

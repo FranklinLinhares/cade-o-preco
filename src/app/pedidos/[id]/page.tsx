@@ -117,7 +117,9 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
   const mercado = mediaParaPedido(precosOfertas, pedido.referencia_preco, pedido.unidade);
   const souComprador = pedido.comprador_id === empresa.id;
   // Quem está no grupo acompanha os lances como quem criou, mas não escolhe o vencedor.
-  const vejoComoComprador = souComprador || souParticipante;
+  // Quem só pediu para entrar, foi recusado ou desistiu não vê os lances (o banco também barra).
+  const aceitoNoGrupo = Boolean(minhaParte && !["pedido", "desistiu", "recusado"].includes(minhaParte.situacao));
+  const vejoComoComprador = souComprador || aceitoNoGrupo;
   // Leilão só para convidados: quem não está na lista vê o leilão, mas não pode dar lance.
   const possoDarLance = !pedido.convidados || pedido.convidados.includes(empresa.id);
   const u = pedido.unidade;

@@ -7,7 +7,11 @@ import { salvarCategorias } from "./acoes";
 // Marcar ou desmarcar uma categoria já salva, separadas por setor. A mesma escolha
 // vale para a vitrine (marcadas abrem primeiro) e para os leilões no modo Vender
 // (só as marcadas aparecem). "Todo o setor" marca ou desmarca as categorias dele.
-export function MinhasCategorias({ marcadas, dica }: { marcadas: Categoria[]; dica: string }) {
+// Com um setor escolhido no topo, só as categorias dele aparecem; as marcadas dos
+// outros setores seguem salvas (vão escondidas no formulário).
+export function MinhasCategorias({ marcadas, dica, setor = null }: { marcadas: Categoria[]; dica: string; setor?: Setor | null }) {
+  const setores = setor ? [setor] : (Object.keys(SETORES) as Setor[]);
+  const deOutros = marcadas.filter((c) => !setores.some((s) => (SETORES[s].categorias as readonly Categoria[]).includes(c)));
   const form = useRef<HTMLFormElement>(null);
 
   function marcarSetor(setor: Setor) {
@@ -20,7 +24,8 @@ export function MinhasCategorias({ marcadas, dica }: { marcadas: Categoria[]; di
   return (
     <form ref={form} action={salvarCategorias} className="space-y-2">
       <div className="text-sm font-medium text-stone-700">Suas categorias de interesse</div>
-      {(Object.keys(SETORES) as Setor[]).map((setor) => (
+      {deOutros.map((c) => <input key={c} type="hidden" name="categorias" value={c} />)}
+      {setores.map((setor) => (
         <div key={setor} className="flex flex-wrap items-center gap-2">
           <button
             type="button"

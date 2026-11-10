@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CATEGORIAS, PUBLICO, porUnidade, setorDe, type Categoria, type Setor, type Publico, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, PUBLICO, SETORES, porUnidade, setorDe, type Categoria, type Setor, type Publico, type Unidade } from "@/lib/dominio";
 import { Situacao } from "@/components/Situacao";
 import { SeletorSetor } from "@/components/SeletorSetor";
 
@@ -64,7 +64,7 @@ export async function VitrinePublica({ supabase, termo, setor }: { supabase: Sup
       </form>
 
       {grupos.size === 0 && (
-        <p className="cartao text-stone-600">Nenhuma oferta encontrada{termo ? ` para “${termo}”` : ""}.</p>
+        <p className="cartao text-stone-600">Nenhuma oferta encontrada{termo ? ` para “${termo}”` : ""}{setor ? ` em ${SETORES[setor].nome}` : ""}.</p>
       )}
 
       {ordem.map((cat) => (

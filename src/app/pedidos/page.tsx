@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { exigirEmpresa } from "@/lib/sessao";
-import { CATEGORIAS, dataHora, lerSetor, porUnidade, setorDe, type Categoria, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, SETORES, dataHora, lerSetor, porUnidade, setorDe, type Categoria, type Unidade } from "@/lib/dominio";
 import { BarraSelecao, Marcar } from "@/components/Selecao";
 import { BORDA_CARTAO, Situacao, type TomSituacao } from "@/components/Situacao";
 import { buscarOcultos } from "@/lib/ocultos";
@@ -162,10 +162,11 @@ export default async function Pedidos({ searchParams }: PageProps<"/pedidos">) {
           <>
             <p className="text-sm text-stone-500">Pedidos abertos de compradores dentro do seu raio de entrega de {empresa.raio_km} km. Toque em um para dar lance.</p>
             <MinhasCategorias
+              setor={setor}
               marcadas={marcadas}
               dica={marcadas.length ? "Só aparecem leilões das categorias marcadas, e só delas chega aviso de leilão novo." : "Nenhuma marcada: aparecem leilões de todas as categorias. Marque as que você vende para ver só essas."}
             />
-            {paraLance.length === 0 && <p className="text-stone-600">Nenhum leilão aberto perto de você agora{marcadas.length ? " nas categorias marcadas" : ""}.</p>}
+            {paraLance.length === 0 && <p className="text-stone-600">Nenhum leilão aberto perto de você agora{setor ? ` em ${SETORES[setor].nome}` : ""}{marcadas.length ? " nas categorias marcadas" : ""}.</p>}
             {foraDasMarcadas > 0 && (
               <p className="text-sm text-stone-500">Mais {foraDasMarcadas} leilão(ões) perto de você em outras categorias. Marque a categoria acima para ver.</p>
             )}
@@ -177,7 +178,7 @@ export default async function Pedidos({ searchParams }: PageProps<"/pedidos">) {
             <p className="text-sm text-stone-500">Crie um leilão e os fornecedores próximos disputam pelo menor preço. Para dar lances em leilões de outras pessoas, mude para Vender no menu.</p>
             {gruposPerto.length > 0 && <GruposPerto grupos={gruposPerto} />}
             {participacoes.length > 0 && <MinhasParticipacoes participacoes={participacoes} />}
-            {meusLeiloes.length === 0 && <p className="text-stone-600">Você ainda não criou leilões.</p>}
+            {meusLeiloes.length === 0 && <p className="text-stone-600">{setor ? `Nenhum leilão seu em ${SETORES[setor].nome}.` : "Você ainda não criou leilões."}</p>}
             <BarraSelecao id="excluir-leiloes" acao={excluirLeiloes} confirmar="Excluir {n} leilão(ões)? Os que ainda estão abertos são cancelados e os fornecedores não podem mais dar lance." />
             <PorCategoria pedidos={meusLeiloes} vendendo={false} lances={lances} eu={empresa.id} />
           </>

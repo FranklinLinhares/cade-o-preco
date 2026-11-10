@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { contaAtual, usuarioAtual } from "@/lib/sessao";
 import { VitrinePublica } from "./VitrinePublica";
-import { CATEGORIAS, PUBLICO, lerSetor, porUnidade, setorDe, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, PUBLICO, SETORES, lerSetor, porUnidade, setorDe, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
 import { SeloPreco } from "@/components/SeloPreco";
 import { mediaDasOfertas } from "@/lib/escudo";
 import { Estrelas } from "@/components/Estrelas";
@@ -127,13 +127,13 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
         Ofertas de outros vendedores que entregam até você, dentro do seu raio de {empresa.raio_km} km.
       </p>
 
-      <MinhasCategorias marcadas={empresa.categorias} dica="As marcadas aparecem primeiro e abertas. A mesma escolha vale para os leilões no modo Vender." />
+      <MinhasCategorias marcadas={empresa.categorias} setor={setor} dica="As marcadas aparecem primeiro e abertas. A mesma escolha vale para os leilões no modo Vender." />
 
       <BarraSelecao id="ocultar-ofertas" acao={ocultarOfertas} confirmar="Tirar {n} oferta(s) da sua vitrine? Elas somem só para você; o vendedor continua anunciando." />
 
       {grupos.size === 0 && (
         <div className="cartao space-y-2">
-          <p>Nenhuma oferta encontrada{termo ? ` para “${termo}”` : ""} perto de você.</p>
+          <p>Nenhuma oferta encontrada{termo ? ` para “${termo}”` : ""}{setor ? ` em ${SETORES[setor].nome}` : ""} perto de você.</p>
           {empresa.papel === "comprador" && (
             <Link href={`/pedidos/novo${termo ? `?produto=${encodeURIComponent(termo)}` : ""}`} className="botao-secundario">
               Criar um leilão para este produto

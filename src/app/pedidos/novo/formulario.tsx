@@ -4,11 +4,12 @@ import { useActionState, useState } from "react";
 import { criarPedido, precosNoApp, type EstadoForm } from "../acoes";
 import { AssistenteIA, type ItemIA } from "@/components/AssistenteIA";
 import { ReferenciaPreco } from "@/components/ReferenciaPreco";
-import { CATEGORIAS, UNIDADES, type ReferenciaPreco as Referencia } from "@/lib/dominio";
+import { UNIDADES, type ReferenciaPreco as Referencia } from "@/lib/dominio";
 import { Girando } from "@/components/Girando";
 import { EscolherConvidados } from "@/components/EscolherConvidados";
 import type { Contato } from "@/lib/contatos";
 import { mensagemDaTela } from "@/lib/erros";
+import { OpcoesCategoria } from "@/components/OpcoesCategoria";
 
 export function FormularioPedido({ produtoInicial, fornecedores }: { produtoInicial: string; fornecedores: Contato[] }) {
   const [estado, acao, enviando] = useActionState<EstadoForm, FormData>(criarPedido, {});
@@ -69,7 +70,7 @@ export function FormularioPedido({ produtoInicial, fornecedores }: { produtoInic
           <div className="col-span-2 sm:col-span-1">
             <label className="rotulo" htmlFor="categoria">Categoria</label>
             <select id="categoria" name="categoria" defaultValue={item.categoria} className="campo">
-              {Object.entries(CATEGORIAS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+              <OpcoesCategoria />
             </select>
           </div>
         </div>

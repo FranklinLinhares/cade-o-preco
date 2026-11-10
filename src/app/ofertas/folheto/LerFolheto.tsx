@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CATEGORIAS, PUBLICO, UNIDADES, porUnidade, type Categoria, type Unidade } from "@/lib/dominio";
+import { PUBLICO, UNIDADES, porUnidade, type Categoria, type Unidade } from "@/lib/dominio";
 import { Girando } from "@/components/Girando";
 import { publicarFolheto } from "../acoes";
 import { MAXIMO_ENVIO, MAXIMO_PAGINAS, fotoParaJpeg, pdfParaJpegs } from "./paginas";
 import { lerPlanilha } from "@/lib/planilha";
 import { mensagemDaTela } from "@/lib/erros";
 import { lerNumero } from "@/lib/numero";
+import { OpcoesCategoria } from "@/components/OpcoesCategoria";
 
 type Arquivo = { tipo: "image/jpeg"; base64: string; nome: string };
 type Linha = {
@@ -268,7 +269,7 @@ export function LerFolheto({ comIa }: { comIa: boolean }) {
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <select aria-label="Categoria" value={l.categoria} onChange={(e) => mudar(i, { categoria: e.target.value as Categoria, conferir: false })} className="campo">
-                {Object.entries(CATEGORIAS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                <OpcoesCategoria />
               </select>
               <select aria-label="Unidade" value={l.unidade} onChange={(e) => mudar(i, { unidade: e.target.value as Unidade, conferir: false })} className="campo">
                 {Object.entries(UNIDADES).map(([v, n]) => <option key={v} value={v}>por {n}</option>)}

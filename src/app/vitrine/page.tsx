@@ -2,13 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { contaAtual, usuarioAtual } from "@/lib/sessao";
 import { VitrinePublica } from "./VitrinePublica";
-import { CATEGORIAS, PUBLICO, porUnidade, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, PUBLICO, lerSetor, porUnidade, setorDe, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
 import { SeloPreco } from "@/components/SeloPreco";
 import { mediaDasOfertas } from "@/lib/escudo";
 import { Estrelas } from "@/components/Estrelas";
 import { buscarReputacao } from "@/lib/reputacao";
 import { Situacao } from "@/components/Situacao";
 import { MinhasCategorias } from "./MinhasCategorias";
+import { SeletorSetor } from "@/components/SeletorSetor";
 import { ocultarOfertas } from "./acoes";
 import { BarraSelecao, Marcar } from "@/components/Selecao";
 import { buscarOcultos } from "@/lib/ocultos";
@@ -37,7 +38,8 @@ type Oferta = {
 };
 
 export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
-  const { q, de, como, senha } = await searchParams;
+  const { q, de, como, senha, setor: setorParam } = await searchParams;
+  const setor = lerSetor(setorParam);
   const termo = typeof q === "string" ? q.trim() : "";
   // Filtro do comprador: ofertas de empresas (CNPJ), de pessoas físicas (CPF) ou de todos.
   const origem = de === "pj" || de === "pf" ? de : "todos";
@@ -47,7 +49,7 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
   // Sem conta, a vitrine abre mesmo assim (o link de uma oferta chega pelo WhatsApp).
   if (!empresa) {
     if (await usuarioAtual()) redirect("/cadastro");
-    return <VitrinePublica supabase={supabase} termo={termo} />;
+    return <VitrinePublica supabase={supabase} termo={termo} setor={setor} />;
   }
   // A Vitrine é para comprar; no modo Vender a pessoa vai para as próprias ofertas.
   if (empresa.papel !== "comprador") redirect("/ofertas");
@@ -69,7 +71,7 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
   // As próprias ofertas ficam em Minhas ofertas; a vitrine mostra só as de outras pessoas.
   const ofertas = ((data ?? []) as Oferta[]).filter(
     (o) => o.fornecedor_id !== empresa.id && !ocultas.has(o.id) && (origem === "todos" || o.fornecedor_pj === (origem === "pj")) &&
-      (modo === "todos" || o.so_na_loja === (modo === "loja")),
+      (modo === "todos" || o.so_na_loja === (modo === "loja")) && (!setor || setorDe(o.categoria) === setor),
   );
   const reputacao = await buscarReputacao(supabase, ofertas.map((o) => o.fornecedor_id));
 
@@ -105,8 +107,10 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Vitrine</h1>
       {senha === "trocada" && <p className="aviso">Senha nova salva. Use ela da próxima vez que entrar.</p>}
+      <SeletorSetor caminho="/vitrine" atual={setor} outros={{ q: termo, de: origem === "todos" ? "" : origem, como: modo === "todos" ? "" : modo }} />
       <form className="flex flex-wrap gap-2">
-        <input name="q" defaultValue={termo} placeholder="Buscar produto: tomate, arroz, frango..." className="campo min-w-48 flex-1" />
+        {setor && <input type="hidden" name="setor" value={setor} />}
+        <input name="q" defaultValue={termo} placeholder="Buscar produto: tomate, arroz, marmitex..." className="campo min-w-48 flex-1" />
         <select name="de" defaultValue={origem} aria-label="Ver ofertas de" className="campo w-auto">
           <option value="todos">Todos</option>
           <option value="pj">Empresas (CNPJ)</option>

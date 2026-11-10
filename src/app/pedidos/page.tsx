@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { exigirEmpresa } from "@/lib/sessao";
-import { CATEGORIAS, dataHora, porUnidade, type Categoria, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, dataHora, lerSetor, porUnidade, setorDe, type Categoria, type Unidade } from "@/lib/dominio";
 import { BarraSelecao, Marcar } from "@/components/Selecao";
 import { BORDA_CARTAO, Situacao, type TomSituacao } from "@/components/Situacao";
 import { buscarOcultos } from "@/lib/ocultos";
 import { excluirLeiloes } from "./acoes";
 import { MinhasCategorias } from "../vitrine/MinhasCategorias";
+import { SeletorSetor } from "@/components/SeletorSetor";
 
 type Linha = {
   id: string;
@@ -58,7 +59,8 @@ type LanceResumo = {
 
 const STATUS: Record<string, string> = { aberto: "Aberto", encerrado: "Encerrado", fechado: "Fechado", cancelado: "Cancelado" };
 
-export default async function Pedidos() {
+export default async function Pedidos({ searchParams }: PageProps<"/pedidos">) {
+  const setor = lerSetor((await searchParams).setor);
   const { supabase, empresa } = await exigirEmpresa();
   const vendendo = empresa.papel === "fornecedor";
 
@@ -116,8 +118,10 @@ export default async function Pedidos() {
   const participacoes = participacoesTodas.filter((p) => !idsPerto.has(p.pedido.id));
   let paraLance = vendendo ? leiloes : [];
   let meusLeiloes = vendendo ? [] : leiloes;
-  paraLance = paraLance.filter((p) => !ocultos.has(p.id));
-  meusLeiloes = meusLeiloes.filter((p) => !ocultos.has(p.id));
+  // Setor escolhido no topo (Armazém, Embalagens e limpeza); sem escolha, todos.
+  const doSetor = (p: Linha) => !setor || setorDe(p.categoria) === setor;
+  paraLance = paraLance.filter((p) => !ocultos.has(p.id) && doSetor(p));
+  meusLeiloes = meusLeiloes.filter((p) => !ocultos.has(p.id) && doSetor(p));
 
   // No modo Vender, só os leilões das categorias marcadas (nenhuma marcada = todas),
   // como os avisos de leilão novo.
@@ -153,6 +157,7 @@ export default async function Pedidos() {
             </div>
           )}
         </div>
+        <SeletorSetor caminho="/pedidos" atual={setor} />
         {vendendo ? (
           <>
             <p className="text-sm text-stone-500">Pedidos abertos de compradores dentro do seu raio de entrega de {empresa.raio_km} km. Toque em um para dar lance.</p>

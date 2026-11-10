@@ -27,7 +27,8 @@ function acharCategoria(valor: unknown): Categoria | undefined {
 const SINONIMOS_UNIDADE: Record<string, Unidade> = {
   kg: "kg", quilo: "kg", kilo: "kg",
   l: "l", litro: "l", lt: "l",
-  un: "un", unidade: "un", und: "un", pacote: "un", pct: "un", caixa: "un", lata: "un",
+  un: "un", unidade: "un", und: "un", lata: "un",
+  pacote: "pacote", pct: "pacote", caixa: "caixa", cx: "caixa", fardo: "fardo", fd: "fardo",
   duzia: "duzia", dz: "duzia",
 };
 

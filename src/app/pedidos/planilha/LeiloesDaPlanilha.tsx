@@ -6,6 +6,7 @@ import { Girando } from "@/components/Girando";
 import { lerPlanilhaLeiloes, type ItemLeilao } from "@/lib/planilha";
 import { criarLeiloes } from "../acoes";
 import { lerNumero } from "@/lib/numero";
+import { OpcoesCategoria } from "@/components/OpcoesCategoria";
 
 type Linha = ItemLeilao & { incluir: boolean };
 
@@ -131,7 +132,7 @@ export function LeiloesDaPlanilha() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                     <select aria-label="Categoria" value={l.categoria} onChange={(e) => mudar(i, { categoria: e.target.value as Categoria, conferir: false })} className="campo">
-                      {Object.entries(CATEGORIAS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                      <OpcoesCategoria />
                     </select>
                     <select aria-label="Unidade" value={l.unidade} onChange={(e) => mudar(i, { unidade: e.target.value as Unidade, conferir: false })} className="campo">
                       {Object.entries(UNIDADES).map(([v, n]) => <option key={v} value={v}>{n}</option>)}

@@ -1,4 +1,5 @@
-import { CATEGORIAS, PUBLICO, UNIDADES, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
+import { PUBLICO, UNIDADES, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
+import { OpcoesCategoria } from "@/components/OpcoesCategoria";
 
 export type ValoresOferta = {
   produto?: string;
@@ -44,7 +45,7 @@ export function CamposOferta({ valores }: { valores: ValoresOferta }) {
         <div>
           <label className="rotulo" htmlFor="categoria">Categoria</label>
           <select id="categoria" name="categoria" defaultValue={valores.categoria} className="campo">
-            {Object.entries(CATEGORIAS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            <OpcoesCategoria />
           </select>
         </div>
         <div>

@@ -7,14 +7,38 @@ export const CATEGORIAS = {
   laticinios: "Laticínios",
   bebidas: "Bebidas",
   mercearia: "Mercearia seca",
+  embalagens: "Embalagens e descartáveis",
+  limpeza: "Limpeza",
+  higiene: "Higiene",
 } as const;
 export type Categoria = keyof typeof CATEGORIAS;
+
+// Setores agrupam as categorias (primeiro nível da Vitrine e dos Leilões).
+// Um setor novo no futuro (ex.: Farmácia) é só mais uma entrada aqui, com as
+// categorias dele criadas por migração.
+export const SETORES = {
+  armazem: { nome: "Armazém", categorias: ["hortifruti", "graos", "carnes", "laticinios", "bebidas", "mercearia"] },
+  embalagens: { nome: "Embalagens e limpeza", categorias: ["embalagens", "limpeza", "higiene"] },
+} as const satisfies Record<string, { nome: string; categorias: readonly Categoria[] }>;
+export type Setor = keyof typeof SETORES;
+
+export function setorDe(categoria: Categoria): Setor {
+  return (Object.keys(SETORES) as Setor[]).find((s) => (SETORES[s].categorias as readonly Categoria[]).includes(categoria)) ?? "armazem";
+}
+
+// Lê o setor de um parâmetro da URL (?setor=...); qualquer outro valor = todos.
+export function lerSetor(valor: unknown): Setor | null {
+  return typeof valor === "string" && valor in SETORES ? (valor as Setor) : null;
+}
 
 export const UNIDADES = {
   kg: "kg",
   l: "litro",
   un: "unidade",
   duzia: "dúzia",
+  pacote: "pacote",
+  caixa: "caixa",
+  fardo: "fardo",
 } as const;
 export type Unidade = keyof typeof UNIDADES;
 

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CATEGORIAS, PUBLICO, porUnidade, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, PUBLICO, porUnidade, setorDe, type Categoria, type Setor, type Publico, type Unidade } from "@/lib/dominio";
 import { Situacao } from "@/components/Situacao";
+import { SeletorSetor } from "@/components/SeletorSetor";
 
 export type OfertaPublica = {
   id: string;
@@ -26,9 +27,9 @@ export type OfertaPublica = {
 
 // Vitrine para quem ainda não tem conta: as ofertas abertas a todos, de todas as
 // cidades, sem telefone nem localização de quem vende. Para comprar, cria a conta.
-export async function VitrinePublica({ supabase, termo }: { supabase: SupabaseClient; termo: string }) {
+export async function VitrinePublica({ supabase, termo, setor }: { supabase: SupabaseClient; termo: string; setor: Setor | null }) {
   const { data } = await supabase.rpc("vitrine_publica", { termo: termo || null });
-  const ofertas = (data ?? []) as OfertaPublica[];
+  const ofertas = ((data ?? []) as OfertaPublica[]).filter((o) => !setor || setorDe(o.categoria) === setor);
 
   const grupos = new Map<string, OfertaPublica[]>();
   for (const o of ofertas) {
@@ -55,7 +56,9 @@ export async function VitrinePublica({ supabase, termo }: { supabase: SupabaseCl
           <Link href="/entrar?volta=/vitrine" className="botao-secundario">Já tenho conta</Link>
         </div>
       </div>
+      <SeletorSetor caminho="/vitrine" atual={setor} outros={{ q: termo }} />
       <form className="flex flex-wrap gap-2">
+        {setor && <input type="hidden" name="setor" value={setor} />}
         <input name="q" defaultValue={termo} placeholder="Produto ou cidade: tomate, arroz, João Pessoa..." className="campo min-w-48 flex-1" />
         <button className="botao">Buscar</button>
       </form>

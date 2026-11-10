@@ -41,9 +41,9 @@ const ItemSchema = z.object({
 });
 export type ItemEstruturado = z.infer<typeof ItemSchema>;
 
-const INSTRUCOES_ITEM = `Você organiza anúncios de compra e venda de alimentos para um app de negociação entre empresas na Paraíba.
+const INSTRUCOES_ITEM = `Você organiza anúncios de compra e venda de alimentos, embalagens e produtos de limpeza e higiene para um app de negociação entre empresas na Paraíba.
 Receba um texto livre e devolva o item estruturado.
-- Padronize a unidade para kg, l, un ou duzia e converta quantidade e preço para essa unidade (ex.: "10 caixas de 20 kg a R$ 90 a caixa" vira 200 kg a 4,50/kg).
+- Padronize a unidade para kg, l, un, duzia, pacote, caixa ou fardo (pacote/caixa/fardo para embalagens, descartáveis e produtos de limpeza vendidos assim) e converta quantidade e preço para essa unidade (ex.: "10 caixas de 20 kg a R$ 90 a caixa" vira 200 kg a 4,50/kg).
 - produto_chave deve ser igual para o mesmo produto escrito de formas diferentes: "arroz agulhinha tipo 1 pct 5kg" e "arroz branco tipo 1" viram "arroz-branco-tipo-1".
 - Não invente quantidade, preço ou validade que o texto não informou: use null.`;
 
@@ -86,7 +86,8 @@ Liste cada produto em oferta, uma linha por produto, com o preço da oferta (nã
 - Produto vendido por peso (frutas, verduras, carnes, frios a granel): unidade kg e preço por kg.
 - Produto em embalagem (pacote, lata, garrafa, caixa): unidade "un" e preço da embalagem; a embalagem e a marca vão na descrição (ex.: "Tio João, pacote 5 kg").
 - Bebidas vendidas por litro a granel: unidade l. Ovos por dúzia: unidade duzia.
-- Ignore itens que não são alimentos ou bebidas (limpeza, higiene, utilidades).
+- Itens de limpeza (detergente, desinfetante, sabão), higiene (papel higiênico, sabonete, fralda) e embalagens e descartáveis (marmitex, sacolas, copos, guardanapos) entram nas categorias limpeza, higiene e embalagens.
+- Ignore o que não é alimento, bebida, limpeza, higiene ou embalagem (eletroportáteis, roupas, utilidades do lar).
 - Não invente: se um preço estiver ilegível, deixe o item de fora.`;
 
 // Lê as páginas de um folheto (fotos ou PDF) e devolve os itens em oferta.
@@ -107,7 +108,7 @@ export async function lerFolheto(arquivos: ArquivoFolheto[]): Promise<FolhetoLid
                 ? ({ type: "document", source: { type: "base64", media_type: a.tipo, data: a.base64 } } as const)
                 : ({ type: "image", source: { type: "base64", media_type: a.tipo, data: a.base64 } } as const),
             ),
-            { type: "text", text: `Hoje é ${hoje}. Liste os alimentos em oferta neste folheto.` },
+            { type: "text", text: `Hoje é ${hoje}. Liste os produtos em oferta neste folheto.` },
           ],
         },
       ],

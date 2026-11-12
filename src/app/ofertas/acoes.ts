@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { mensagemDeErro } from "@/lib/erros";
+import { avisar } from "@/lib/aviso";
 import { revalidatePath } from "next/cache";
 import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados } from "@/lib/ocultos";
@@ -194,7 +195,7 @@ export async function excluirOfertas(form: FormData) {
   const ids = idsMarcados(form);
   if (ids.length === 0) return;
   const { error } = await supabase.from("ofertas").delete().in("id", ids).eq("fornecedor_id", empresa.id);
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath("/ofertas");
   revalidatePath("/vitrine");
 }

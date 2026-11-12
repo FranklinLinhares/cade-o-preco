@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { mensagemDeErro } from "@/lib/erros";
+import { avisar } from "@/lib/aviso";
 import { revalidatePath } from "next/cache";
 import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados, ocultar } from "@/lib/ocultos";
@@ -105,7 +106,7 @@ export async function responderParticipante(form: FormData) {
     p_comprador: String(form.get("comprador")),
     p_aceitar: form.get("resposta") === "aceitar",
   });
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath(`/pedidos/${pedido}`);
 }
 
@@ -118,7 +119,7 @@ export async function responderPedidoGrupo(form: FormData) {
     p_comprador: String(form.get("comprador")),
     p_aceitar: form.get("resposta") === "aceitar",
   });
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath(`/pedidos/${pedido}`);
 }
 
@@ -127,7 +128,7 @@ export async function confirmarCompraGrupo(form: FormData) {
   const { supabase } = await exigirEmpresa();
   const pedido = String(form.get("pedido"));
   const { error } = await supabase.rpc("confirmar_compra_grupo", { p_pedido: pedido, p_confirmar: form.get("resposta") === "confirmar" });
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath(`/pedidos/${pedido}`);
 }
 
@@ -135,7 +136,7 @@ export async function escolherVencedor(form: FormData) {
   const { supabase } = await exigirEmpresa();
   const pedido = String(form.get("pedido"));
   const { error } = await supabase.rpc("fechar_pedido", { p_pedido: pedido, p_lance: String(form.get("lance")) });
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath(`/pedidos/${pedido}`);
   redirect(`/pedidos/${pedido}`);
 }

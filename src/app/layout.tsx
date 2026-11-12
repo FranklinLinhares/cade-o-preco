@@ -8,6 +8,7 @@ import { sair } from "@/app/entrar/acoes";
 import { trocarModo } from "@/app/cadastro/modo";
 import { Navegacao, type ItemMenu } from "@/components/Navegacao";
 import { InstalarApp } from "@/components/InstalarApp";
+import { AvisoDoServidor } from "@/components/AvisoDoServidor";
 
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
@@ -39,6 +40,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-24 lg:pb-10">
           <InstalarApp />
+          <Suspense>
+            <AvisoDoServidor />
+          </Suspense>
           <Suspense>{children}</Suspense>
         </main>
       </body>

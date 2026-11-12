@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { mensagemDeErro } from "@/lib/erros";
+import { avisar } from "@/lib/aviso";
 import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados, ocultar } from "@/lib/ocultos";
 
@@ -23,7 +24,7 @@ export async function avaliarNegocio(_: EstadoAvaliacao, form: FormData): Promis
 export async function concluirNegocio(form: FormData) {
   const { supabase } = await exigirEmpresa();
   const { error } = await supabase.rpc("concluir_negocio", { p_compra: String(form.get("compra")) });
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath("/", "layout");
 }
 
@@ -34,7 +35,7 @@ export async function responderReserva(form: FormData) {
     p_reserva: String(form.get("reserva")),
     p_aceitar: form.get("resposta") === "aceitar",
   });
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath("/", "layout");
 }
 
@@ -42,7 +43,7 @@ export async function responderReserva(form: FormData) {
 export async function cancelarReserva(form: FormData) {
   const { supabase } = await exigirEmpresa();
   const { error } = await supabase.rpc("cancelar_reserva", { p_reserva: String(form.get("reserva")) });
-  if (error) throw new Error(mensagemDeErro(error));
+  if (error) return avisar(mensagemDeErro(error));
   revalidatePath("/", "layout");
 }
 

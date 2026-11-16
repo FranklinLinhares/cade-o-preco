@@ -10,7 +10,8 @@ await db.exec(`
   create role authenticated;
   create role anon;
   create schema auth;
-  create table auth.users (id uuid primary key);
+  create table auth.users (id uuid primary key, email text, banned_until timestamptz, last_sign_in_at timestamptz);
+  create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid);
   create function auth.uid() returns uuid language sql stable
     as $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
   create publication supabase_realtime;
@@ -648,5 +649,64 @@ assert.equal((await comoVisitante(`select * from vitrine_publica(null, $1)`, [pu
 await assert.rejects(comoVisitante(`select * from vitrine_ofertas(null)`), /permission denied/);
 await assert.rejects(comoVisitante(`select pode_ver_grupo($1, $2)`, [grupoConvite, g.dona]), /permission denied/);
 await assert.rejects(comoVisitante(`select * from ofertas`), /permission denied/);
+
+// Área do administrador: só quem está em administradores lê e age; conta comum não.
+await db.exec(`reset role;`);
+await db.query(`insert into administradores (usuario_id) values ($1)`, [ids.pessoa]);
+await db.query(`insert into auth.sessions (user_id) values ($1)`, [ids.longe]);
+assert.equal((await como(ids.pessoa, `select eh_admin() ok`)).rows[0].ok, true);
+assert.equal((await como(ids.agricultor, `select eh_admin() ok`)).rows[0].ok, false);
+await falha(ids.agricultor, `select admin_resumo()`, [], /Só o administrador/);
+await falha(ids.agricultor, `select * from admin_contas(null)`, [], /Só o administrador/);
+await falha(ids.agricultor, `select admin_bloquear_conta($1, 'x')`, [ids.longe], /Só o administrador/);
+await falha(ids.agricultor, `select * from administradores`, [], /permission denied/);
+await falha(ids.agricultor, `select * from admin_registros`, [], /permission denied/);
+await assert.rejects(comoVisitante(`select admin_resumo()`), /permission denied/);
+const resumo = (await como(ids.pessoa, `select admin_resumo() r`)).rows[0].r;
+assert.ok(resumo.contas >= 5, "resumo conta as contas");
+assert.ok((await como(ids.pessoa, `select * from admin_contas('serra')`)).rows.length === 1, "busca conta pelo nome");
+assert.ok((await como(ids.pessoa, `select * from admin_ofertas(null)`)).rows.length > 0);
+// Bloquear: ofertas saem da vitrine, login cai, nada novo é publicado.
+await falha(ids.pessoa, `select admin_bloquear_conta($1)`, [ids.pessoa], /própria conta/);
+await como(ids.pessoa, `select admin_bloquear_conta($1, 'Preços falsos')`, [ids.longe]);
+const bloqueada = (await db.query(`select e.bloqueada_em, e.bloqueio_motivo, u.banned_until from empresas e join auth.users u using (id) where e.id = $1`, [ids.longe])).rows[0];
+assert.ok(bloqueada.bloqueada_em && bloqueada.banned_until, "conta bloqueada e login barrado");
+assert.equal(bloqueada.bloqueio_motivo, "Preços falsos");
+assert.equal((await db.query(`select count(*)::int n from ofertas where fornecedor_id = $1 and ativa`, [ids.longe])).rows[0].n, 0, "ofertas da conta bloqueada saem do ar");
+assert.equal((await db.query(`select count(*)::int n from auth.sessions where user_id = $1`, [ids.longe])).rows[0].n, 0, "sessões encerradas");
+await falha(ids.longe, `insert into ofertas (fornecedor_id, produto, produto_chave, categoria, unidade, preco_unitario, quantidade_disponivel)
+  values ($1, 'Feijão', 'feijao', 'graos', 'kg', 5, 10)`, [ids.longe], /bloqueada/);
+// A própria conta não tira o bloqueio.
+await como(ids.longe, `update empresas set bloqueada_em = null, bloqueio_motivo = null where id = $1`, [ids.longe]);
+assert.ok((await db.query(`select bloqueada_em from empresas where id = $1`, [ids.longe])).rows[0].bloqueada_em, "conta não se desbloqueia");
+await falha(ids.pessoa, `select admin_bloquear_conta($1)`, [ids.longe], /já bloqueada/);
+await como(ids.pessoa, `select admin_desbloquear_conta($1)`, [ids.longe]);
+assert.equal((await db.query(`select banned_until from auth.users where id = $1`, [ids.longe])).rows[0].banned_until, null, "desbloqueio libera o login");
+// Tirar oferta do ar: o dono não consegue publicar de novo; o administrador libera.
+const ofertaRetirada = (await db.query(`select o.id from ofertas o join empresas e on e.id = o.fornecedor_id where o.ativa and o.removida_em is null and e.bloqueada_em is null and o.convidados is null order by o.criado_em limit 1`)).rows[0].id;
+const donoRetirada = (await db.query(`select fornecedor_id from ofertas where id = $1`, [ofertaRetirada])).rows[0].fornecedor_id;
+await como(ids.pessoa, `select admin_tirar_oferta($1, 'Produto proibido')`, [ofertaRetirada]);
+assert.equal((await db.query(`select ativa from ofertas where id = $1`, [ofertaRetirada])).rows[0].ativa, false);
+await falha(donoRetirada, `update ofertas set ativa = true where id = $1`, [ofertaRetirada], /retirada pelo administrador/);
+await como(donoRetirada, `update ofertas set removida_em = null where id = $1`, [ofertaRetirada]);
+assert.ok((await db.query(`select removida_em from ofertas where id = $1`, [ofertaRetirada])).rows[0].removida_em, "dono não apaga a marca");
+assert.ok((await db.query(`select count(*)::int n from avisos where empresa_id = $1 and texto like '%Motivo: Produto proibido%'`, [donoRetirada])).rows[0].n === 1, "dono é avisado");
+await como(ids.pessoa, `select admin_devolver_oferta($1)`, [ofertaRetirada]);
+await como(donoRetirada, `update ofertas set ativa = true where id = $1`, [ofertaRetirada]);
+assert.equal((await db.query(`select ativa from ofertas where id = $1`, [ofertaRetirada])).rows[0].ativa, true, "liberada, o dono publica de novo");
+// Ninguém cria oferta já com a marca.
+const marcada = (await como(donoRetirada, `insert into ofertas (fornecedor_id, produto, produto_chave, categoria, unidade, preco_unitario, quantidade_disponivel, removida_em)
+  values ($1, 'Teste', 'teste', 'graos', 'kg', 5, 10, now()) returning removida_em`, [donoRetirada])).rows[0];
+assert.equal(marcada.removida_em, null);
+// Tirar leilão do ar: cancelado e marcado.
+const leilaoRetirar = (await como(ids.restaurante, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, lances_visiveis, encerra_em)
+  values ($1, 'Leilão impróprio', 'leilao-improprio', 'graos', 'kg', 10, true, now() + interval '1 day') returning id`, [ids.restaurante])).rows[0].id;
+await como(ids.pessoa, `select admin_tirar_leilao($1, 'Teste')`, [leilaoRetirar]);
+const retirado = (await db.query(`select status, removido_em from pedidos where id = $1`, [leilaoRetirar])).rows[0];
+assert.equal(retirado.status, "cancelado");
+assert.ok(retirado.removido_em);
+await falha(ids.pessoa, `select admin_tirar_leilao($1)`, [leilaoRetirar], /leilão aberto/);
+const registros = (await como(ids.pessoa, `select * from admin_ver_registros()`)).rows;
+assert.equal(registros.length, 5, "cada ação fica registrada");
 
 console.log("Todos os testes do banco passaram.");

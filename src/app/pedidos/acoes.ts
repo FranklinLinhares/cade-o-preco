@@ -12,6 +12,9 @@ import { lerNumero } from "@/lib/numero";
 
 export type EstadoForm = { erro?: string; ok?: string };
 
+// Prazos oferecidos na tela de novo leilão; qualquer outro valor vira 1 dia.
+const DURACOES_EM_HORAS = [2, 6, 24, 72, 168];
+
 const numero = (v: FormDataEntryValue | null) => {
   const n = lerNumero(String(v ?? ""));
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -25,7 +28,8 @@ export async function criarPedido(_: EstadoForm, form: FormData): Promise<Estado
   const categoria = String(form.get("categoria"));
   const unidade = String(form.get("unidade"));
   const quantidade = numero(form.get("quantidade"));
-  const horas = Number(form.get("duracao_horas")) || 24;
+  const horasEscolhidas = Number(form.get("duracao_horas"));
+  const horas = DURACOES_EM_HORAS.includes(horasEscolhidas) ? horasEscolhidas : 24;
   if (!produto || !quantidade) return { erro: "Informe o produto e a quantidade." };
   if (!(categoria in CATEGORIAS) || !(unidade in UNIDADES)) return { erro: "Escolha a categoria e a unidade." };
 
@@ -189,7 +193,7 @@ export async function criarLeiloes(dados: { itens: ItemLeilaoNovo[]; horas: numb
   if (empresa.papel !== "comprador") return { erro: "Mude para o modo Comprar, no menu, para criar leilões." };
   if (dados.itens.length === 0) return { erro: "Marque pelo menos um produto." };
   if (dados.itens.length > 50) return { erro: "Crie no máximo 50 leilões por planilha." };
-  const horas = [2, 6, 24, 72, 168].includes(dados.horas) ? dados.horas : 24;
+  const horas = DURACOES_EM_HORAS.includes(dados.horas) ? dados.horas : 24;
 
   const linhas = [];
   for (const [n, item] of dados.itens.entries()) {

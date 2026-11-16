@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { registrarCompraExterna, type EstadoHistorico } from "./acoes";
 import { UNIDADES } from "@/lib/dominio";
 import { OpcoesCategoria } from "@/components/OpcoesCategoria";
+import { hojeEmFortaleza } from "@/lib/datas";
 
 export function FormularioCompra() {
   const [estado, acao, enviando] = useActionState<EstadoHistorico, FormData>(registrarCompraExterna, {});
@@ -17,10 +18,10 @@ export function FormularioCompra() {
         <input name="quantidade" required inputMode="decimal" placeholder="Quantidade" className="campo" />
         <input name="preco_unitario" required inputMode="decimal" placeholder="Preço por unidade (R$)" className="campo" />
         <input name="fornecedor_nome" placeholder="Onde comprou" className="campo" />
-        <input name="data" type="date" className="campo" />
+        <input name="data" type="date" max={hojeEmFortaleza()} aria-label="Data da compra" className="campo" />
         {estado.erro && <p className="erro sm:col-span-2">{estado.erro}</p>}
         {estado.ok && <p className="aviso sm:col-span-2">Compra registrada.</p>}
-        <button disabled={enviando} className="botao sm:col-span-2">Registrar</button>
+        <button disabled={enviando} className="botao sm:col-span-2">{enviando ? "Registrando..." : "Registrar"}</button>
       </form>
     </details>
   );

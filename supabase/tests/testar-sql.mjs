@@ -777,4 +777,14 @@ await db.exec(`
 `);
 await falha(g.longe, `insert into contatos (dono_id, contato_id, tipo) values ($1, '00000000-0000-0000-0001-000000000051', 'fornecedor')`, [g.longe], /muitos contatos/);
 
+// 0041: avisos com a unidade por extenso.
+const ext = async (t) => (await db.query(`select unidades_por_extenso($1) t`, [t])).rows[0].t;
+assert.equal(await ext("Leilão novo perto de você: 3 duzia de Ovos"), "Leilão novo perto de você: 3 dúzias de Ovos");
+assert.equal(await ext("José aceitou você com 1 un e 1,5 l"), "José aceitou você com 1 unidade e 1,5 litro");
+assert.equal(await ext("Alerta de preço: Leite a R$ 4,50 por l na vitrine"), "Alerta de preço: Leite a R$ 4,50 por litro na vitrine");
+assert.equal(await ext("12 un de Pão e 21 caixa"), "12 unidades de Pão e 21 caixas");
+assert.equal(await ext("10 kg de Arroz, um lance"), "10 kg de Arroz, um lance");
+await db.query(`insert into avisos (empresa_id, texto, link) values ($1, 'Leilão novo perto de você: 2 fardo de Água', '/')`, [g.dona]);
+assert.ok((await avisos(g.dona)).includes("Leilão novo perto de você: 2 fardos de Água"), "gatilho ajusta ao gravar");
+
 console.log("Todos os testes do banco passaram.");

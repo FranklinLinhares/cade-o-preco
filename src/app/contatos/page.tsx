@@ -4,6 +4,7 @@ import { buscarContatos, buscarContatosManuais, type Contato, type ContatoManual
 import { adicionarContato, removerContato, removerContatoManual } from "./acoes";
 import { NovoContato } from "./NovoContato";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 
 // Meus contatos: fornecedores e clientes de confiança, para convidar em leilões e ofertas.
 export default async function MeusContatos({ searchParams }: PageProps<"/contatos">) {
@@ -112,9 +113,9 @@ function Lista({ titulo, vazio, tipo, contatos, manuais }: { titulo: string; vaz
               </div>
               <div className="flex flex-wrap gap-x-3 text-sm text-stone-600">
                 {c.telefone && (
-                  <a href={`https://wa.me/${c.telefone.length <= 11 ? "55" : ""}${c.telefone}`} target="_blank" rel="noopener noreferrer" className="text-green-800 hover:underline">
+                  <LinkWhatsApp telefone={c.telefone} className="text-green-800 hover:underline">
                     WhatsApp {c.telefone}
-                  </a>
+                  </LinkWhatsApp>
                 )}
                 {c.email && <a href={`mailto:${c.email}`} className="hover:underline">{c.email}</a>}
                 {c.documento && <span>{c.documento.length === 14 ? "CNPJ" : "CPF"} {c.documento}</span>}

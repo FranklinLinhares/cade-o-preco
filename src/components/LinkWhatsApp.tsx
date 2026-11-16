@@ -1,9 +1,33 @@
+"use client";
+
+import { abrirWhatsApp, linkWhatsApp } from "@/lib/whatsapp";
+
 // Link para conversar pelo WhatsApp; sem telefone cadastrado não mostra um link quebrado.
-export function LinkWhatsApp({ telefone, className = "underline" }: { telefone?: string | null; className?: string }) {
+// O clique passa por abrirWhatsApp, que funciona também no app instalado no iPhone.
+export function LinkWhatsApp({
+  telefone,
+  texto,
+  className = "underline",
+  children = "WhatsApp",
+}: {
+  telefone?: string | null;
+  texto?: string;
+  className?: string;
+  children?: React.ReactNode;
+}) {
   if (!telefone) return <span className="text-stone-400">sem WhatsApp cadastrado</span>;
   return (
-    <a href={`https://wa.me/55${telefone}`} target="_blank" rel="noreferrer" className={className}>
-      WhatsApp
+    <a
+      href={linkWhatsApp(telefone, texto)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      onClick={(e) => {
+        e.preventDefault();
+        abrirWhatsApp(telefone, texto);
+      }}
+    >
+      {children}
     </a>
   );
 }

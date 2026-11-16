@@ -1,5 +1,7 @@
 "use client";
 
+import { abrirWhatsApp } from "@/lib/whatsapp";
+
 // Abre o WhatsApp com uma mensagem pronta e o link da página, para a pessoa
 // mandar a oferta ou o leilão para quem quiser.
 export function Compartilhar({
@@ -15,8 +17,7 @@ export function Compartilhar({
 }) {
   function abrir() {
     const link = new URL(caminho, window.location.origin).toString();
-    const mensagem = `${texto}\n${link}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(mensagem)}`, "_blank", "noopener,noreferrer");
+    abrirWhatsApp(null, `${texto}\n${link}`);
   }
   return (
     <button type="button" onClick={abrir} className={className}>

@@ -31,7 +31,7 @@ export default async function PerfilPublico({ params }: PageProps<"/perfil/[id]"
   const meuPerfil = empresa.id === id;
 
   // As três buscas não dependem uma da outra: saem ao mesmo tempo.
-  const [{ data: perfil }, reputacoes, { data }] = await Promise.all([
+  const [{ data: perfil }, reputacoes, { data }, { data: admin }] = await Promise.all([
     supabase
       .from("empresas")
       .select("id, nome, tipo_documento, agricultor, cidade, uf, criado_em")
@@ -44,6 +44,8 @@ export default async function PerfilPublico({ params }: PageProps<"/perfil/[id]"
       .eq("avaliado_id", id)
       .order("criado_em", { ascending: false })
       .limit(20),
+    // Só no próprio perfil: o link da área do administrador.
+    meuPerfil ? supabase.rpc("eh_admin") : Promise.resolve({ data: false }),
   ]);
   if (!perfil) notFound();
   const reputacao = reputacoes.get(id);
@@ -61,6 +63,11 @@ export default async function PerfilPublico({ params }: PageProps<"/perfil/[id]"
         {meuPerfil && (
           <p className="pt-2 text-sm">
             Este é o seu perfil, como os outros veem. <Link href="/cadastro" className="underline">Editar cadastro</Link>
+          </p>
+        )}
+        {meuPerfil && admin === true && (
+          <p className="pt-1 text-sm">
+            <Link href="/admin" className="font-medium text-green-800 underline">Área do administrador</Link>
           </p>
         )}
         {meuPerfil && (

@@ -13,6 +13,7 @@ import { SeletorSetor } from "@/components/SeletorSetor";
 import { ocultarOfertas } from "./acoes";
 import { BarraSelecao, Marcar } from "@/components/Selecao";
 import { buscarOcultos } from "@/lib/ocultos";
+import { LinkWhatsApp } from "@/components/LinkWhatsApp";
 
 type Oferta = {
   id: string;
@@ -221,14 +222,13 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
                   </div>
                   {o.so_na_loja ? (
                     o.telefone_loja && (
-                      <a
-                        href={`https://wa.me/55${o.telefone_loja}?text=${encodeURIComponent(`Olá! Vi no Cadê o Preço a promoção de ${o.produto} a ${porUnidade(o.preco_unitario, u)}.`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="botao-secundario py-1 text-sm"
+                      <LinkWhatsApp
+                        telefone={o.telefone_loja}
+                        texto={`Olá! Vi no Cadê o Preço a promoção de ${o.produto} a ${porUnidade(o.preco_unitario, u)}.`}
+                        className="botao-secundario min-h-11 text-sm"
                       >
                         Falar com a loja no WhatsApp
-                      </a>
+                      </LinkWhatsApp>
                     )
                   ) : empresa.papel === "comprador" && (
                     // Comprar leva à confirmação, que mostra quem vende antes de fechar.

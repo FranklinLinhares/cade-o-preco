@@ -6,6 +6,7 @@ import { exigirEmpresa } from "@/lib/sessao";
 import { idsMarcados, ocultar } from "@/lib/ocultos";
 import { CATEGORIAS, UNIDADES, chaveDoProduto } from "@/lib/dominio";
 import { lerNumero } from "@/lib/numero";
+import { hojeEmFortaleza } from "@/lib/datas";
 
 export type EstadoHistorico = { erro?: string; ok?: boolean };
 
@@ -19,6 +20,9 @@ export async function registrarCompraExterna(_: EstadoHistorico, form: FormData)
   const preco = lerNumero(String(form.get("preco_unitario")));
   if (!produto || !(quantidade > 0) || !(preco > 0)) return { erro: "Preencha produto, quantidade e preço." };
   if (!(categoria in CATEGORIAS) || !(unidade in UNIDADES)) return { erro: "Escolha a categoria e a unidade." };
+  const data = String(form.get("data") ?? "");
+  if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) return { erro: "Escolha a data pelo calendário." };
+  if (data && data > hojeEmFortaleza()) return { erro: "A data da compra não pode ser no futuro." };
 
   const { error } = await supabase.from("compras").insert({
     comprador_id: empresa.id,
@@ -30,7 +34,7 @@ export async function registrarCompraExterna(_: EstadoHistorico, form: FormData)
     quantidade,
     preco_unitario: preco,
     origem: "externa",
-    data: form.get("data") || undefined,
+    data: data || undefined,
   });
   if (error) return { erro: mensagemDeErro(error) };
   revalidatePath("/historico");

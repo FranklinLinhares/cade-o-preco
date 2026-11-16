@@ -249,6 +249,16 @@ assert.equal(Number(media.rows[0].preco_medio), 5.4);
 const mediaOutraUnidade = await como(ids.restaurante, `select * from preco_medio_regional('arroz-branco-tipo-1', 'un')`);
 assert.equal(Number(mediaOutraUnidade.rows[0].compras), 0);
 assert.equal((await db.query(`select has_function_privilege('anon', 'preco_medio_regional(text, unidade_medida)', 'execute') ok`)).rows[0].ok, false);
+// Compras registradas "fora do app" não mexem na média da região (eram digitadas à vontade).
+await como(ids.restaurante, `insert into compras (comprador_id, fornecedor_nome, produto, produto_chave, categoria, unidade, quantidade, preco_unitario, origem, data)
+  select $1, 'Inventada', 'Arroz', 'arroz-branco-tipo-1', 'graos', 'kg', 1, 99, 'externa', current_date - 1 from generate_series(1, 20)`, [ids.restaurante]);
+const mediaComExternas = await como(ids.restaurante, `select * from preco_medio_regional('arroz-branco-tipo-1', 'kg')`);
+assert.equal(Number(mediaComExternas.rows[0].preco_medio), 5.4, "compras de fora do app não entram na média regional");
+assert.equal(Number(mediaComExternas.rows[0].compras), Number(media.rows[0].compras));
+// Compra de fora do app não pode ter data no futuro.
+await falha(ids.restaurante, `insert into compras (comprador_id, produto, produto_chave, categoria, unidade, quantidade, preco_unitario, origem, data)
+  values ($1, 'Arroz', 'arroz-branco-tipo-1', 'graos', 'kg', 1, 1, 'externa', current_date + 30)`, [ids.restaurante], /não pode ser no futuro/);
+await db.query(`delete from compras where fornecedor_nome = 'Inventada'`);
 
 // Avaliações: o comprador avalia o vendedor e o vendedor avalia o comprador.
 const compraVitrine = (await db.query(`select id from compras where oferta_id = $1`, [ofertaAgricultor])).rows[0].id;

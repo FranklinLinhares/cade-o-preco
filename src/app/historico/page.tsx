@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { exigirEmpresa } from "@/lib/sessao";
 import { porUnidade, type Unidade } from "@/lib/dominio";
@@ -48,7 +49,7 @@ export default async function Historico() {
       <p className="text-stone-600">Preço médio pago por semana nas últimas 12 semanas, com a variação em relação à semana anterior.</p>
       <Economia supabase={supabase} comprador={empresa.id} />
       <FormularioCompra />
-      {porProduto.size === 0 && <p className="text-stone-600">Suas compras aparecerão aqui.</p>}
+      {porProduto.size === 0 && <p className="cartao text-stone-600">Suas compras aparecem aqui. Compre na <Link href="/vitrine" className="font-medium text-green-800 underline">Vitrine</Link>, crie um <Link href="/pedidos/novo" className="font-medium text-green-800 underline">leilão</Link> ou registre acima uma compra feita fora do app.</p>}
       <BarraSelecao id="ocultar-historico" acao={ocultarHistorico} confirmar="Tirar {n} produto(s) de Meus preços? Eles somem só desta tela." />
       <div className="grid gap-3 sm:grid-cols-2">
         {[...porProduto.values()].map((semanas) => {

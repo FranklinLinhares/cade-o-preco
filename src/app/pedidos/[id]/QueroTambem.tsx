@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { entrarNoGrupo, sairDoGrupo, type EstadoForm } from "../acoes";
-import { UNIDADES, type Unidade } from "@/lib/dominio";
+import { UNIDADES, type Unidade, quantidade } from "@/lib/dominio";
 
 // Leilão em grupo: entrar com a própria quantidade, mudar a quantidade ou sair.
 export function QueroTambem({
@@ -27,7 +27,7 @@ export function QueroTambem({
   const ok = !erro && (estadoSaida.ok ?? estado.ok);
   return (
     <div className="cartao space-y-3 border-violet-300 bg-violet-50">
-      <h2 className="font-semibold">{esperandoAceite ? `Você pediu para entrar com ${minhaQuantidade} ${unidade}` : noGrupo ? `Você está no grupo com ${minhaQuantidade} ${unidade}` : "Quer este produto também?"}</h2>
+      <h2 className="font-semibold">{esperandoAceite ? `Você pediu para entrar com ${quantidade(minhaQuantidade, unidade)}` : noGrupo ? `Você está no grupo com ${quantidade(minhaQuantidade, unidade)}` : "Quer este produto também?"}</h2>
       <p className="text-sm text-stone-600">
         {esperandoAceite
           ? "Quem criou o leilão escolhe quem participa. Avisamos quando responder."
@@ -43,7 +43,7 @@ export function QueroTambem({
         </div>
         <button disabled={entrando} className="botao">{entrando ? "Enviando..." : noGrupo ? "Mudar quantidade" : "Pedir para entrar"}</button>
       </form>
-      <p className="text-xs text-stone-500">Até {maximo} {unidade} por pessoa. {regraSaida}</p>
+      <p className="text-xs text-stone-500">Até {quantidade(maximo, unidade)} por pessoa. {regraSaida}</p>
       {noGrupo && (
         <form action={sair}>
           <input type="hidden" name="pedido" value={pedido} />

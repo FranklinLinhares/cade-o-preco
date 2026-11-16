@@ -5,6 +5,7 @@ import { buscarReputacao } from "@/lib/reputacao";
 import { Estrelas } from "@/components/Estrelas";
 import { dataHora } from "@/lib/dominio";
 import { sair } from "@/app/entrar/acoes";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 
 type Perfil = {
   id: string;
@@ -72,7 +73,7 @@ export default async function PerfilPublico({ params }: PageProps<"/perfil/[id]"
         )}
         {meuPerfil && (
           <form action={sair} className="pt-2 sm:hidden">
-            <button className="botao-secundario w-full text-red-700">Sair da conta</button>
+            <BotaoEnviar className="botao-secundario w-full text-red-700">Sair da conta</BotaoEnviar>
           </form>
         )}
       </div>

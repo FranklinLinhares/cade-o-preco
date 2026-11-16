@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { contaAtual, usuarioAtual } from "@/lib/sessao";
 import { VitrinePublica } from "./VitrinePublica";
-import { CATEGORIAS, PUBLICO, SETORES, lerSetor, porUnidade, setorDe, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, PUBLICO, SETORES, lerSetor, porUnidade, setorDe, type Categoria, type Publico, type Unidade, quantidade, UNIDADES } from "@/lib/dominio";
 import { SeloPreco } from "@/components/SeloPreco";
 import { mediaDasOfertas } from "@/lib/escudo";
 import { Estrelas } from "@/components/Estrelas";
@@ -185,13 +185,13 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
                   )}
                   {meusPedidos.get(o.id)?.aguardando ? (
                     <Situacao tom="pedido">
-                      Você pediu {meusPedidos.get(o.id)!.aguardando} {u}, aguardando o vendedor aceitar
+                      Você pediu {quantidade(meusPedidos.get(o.id)!.aguardando, u)}, aguardando o vendedor aceitar
                       <Link href="/negocios" className="ml-auto text-sm underline">Ver em Negócios</Link>
                     </Situacao>
                   ) : null}
                   {meusPedidos.get(o.id)?.aceita ? (
                     <Situacao tom="aceito">
-                      Compra aceita: {meusPedidos.get(o.id)!.aceita} {u}
+                      Compra aceita: {quantidade(meusPedidos.get(o.id)!.aceita, u)}
                       <Link href="/negocios" className="ml-auto text-sm underline">Combinar a entrega</Link>
                     </Situacao>
                   ) : null}
@@ -206,7 +206,7 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
                       {o.agricultor && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Agricultura familiar</span>}
                       <div className="text-sm text-stone-500">
                         {o.cidade} · até {o.distancia_km} km
-                        {(!o.so_na_loja || Number(o.quantidade_disponivel) > 0) && <> · {o.quantidade_disponivel} {u} disponíveis</>}
+                        {(!o.so_na_loja || Number(o.quantidade_disponivel) > 0) && <> · {quantidade(o.quantidade_disponivel, u)} disponíveis</>}
                         {o.so_na_loja && <> · até {new Date(o.valida_ate).toLocaleDateString("pt-BR")}</>}
                         {o.validade && <> · validade {new Date(o.validade).toLocaleDateString("pt-BR")}</>}
                         {o.disponivel_a_partir && <> · a partir de {new Date(o.disponivel_a_partir).toLocaleDateString("pt-BR")}</>}
@@ -236,7 +236,7 @@ export default async function Vitrine({ searchParams }: PageProps<"/vitrine">) {
                       <label className="flex items-center gap-1">
                         Quantidade
                         <input name="quantidade" inputMode="decimal" required defaultValue={Math.min(1, Number(o.quantidade_disponivel))} className="campo w-24 py-1" />
-                        {u}
+                        {UNIDADES[u] ?? u}
                       </label>
                       <button className="botao py-1">Comprar</button>
                     </form>

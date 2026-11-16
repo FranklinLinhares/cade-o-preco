@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { exigirEmpresa } from "@/lib/sessao";
-import { porUnidade, reais, type Unidade } from "@/lib/dominio";
+import { porUnidade, reais, type Unidade, quantidade } from "@/lib/dominio";
 import { CartaoParte } from "@/components/CartaoParte";
 import { escolherVencedor } from "../../acoes";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 
 // Confirmação do vencedor: o comprador vê quem é o fornecedor antes de fechar.
 export default async function ConfirmarVencedor({ params, searchParams }: PageProps<"/pedidos/[id]/fechar">) {
@@ -40,12 +41,12 @@ export default async function ConfirmarVencedor({ params, searchParams }: PagePr
       <div className="cartao space-y-1">
         <p className="text-lg font-semibold">{pedido.produto}</p>
         <p>
-          {pedido.quantidade} {pedido.unidade} a {porUnidade(lance.preco_unitario, pedido.unidade)} · total{" "}
+          {quantidade(pedido.quantidade, pedido.unidade)} a {porUnidade(lance.preco_unitario, pedido.unidade)} · total{" "}
           <strong>{reais(Number(lance.preco_unitario) * Number(pedido.quantidade))}</strong>
         </p>
         {pessoas > 0 && (
           <p className="text-sm">
-            Leilão em grupo: mais {pessoas} pessoa{pessoas > 1 ? "s" : ""}, total de {total} {pedido.unidade} ({reais(Number(lance.preco_unitario) * total)}). Cada uma confirma se quer comprar a sua parte neste preço, e o fornecedor aceita ou recusa cada uma.
+            Leilão em grupo: mais {pessoas} pessoa{pessoas > 1 ? "s" : ""}, total de {quantidade(total, pedido.unidade)} ({reais(Number(lance.preco_unitario) * total)}). Cada uma confirma se quer comprar a sua parte neste preço, e o fornecedor aceita ou recusa cada uma.
           </p>
         )}
         {lance.validade && <p className="text-sm text-stone-500">Validade garantida até {new Date(lance.validade).toLocaleDateString("pt-BR")}</p>}
@@ -59,7 +60,7 @@ export default async function ConfirmarVencedor({ params, searchParams }: PagePr
         <form action={escolherVencedor} className="flex flex-wrap gap-2">
           <input type="hidden" name="pedido" value={id} />
           <input type="hidden" name="lance" value={lance.id} />
-          <button className="botao">Confirmar negócio</button>
+          <BotaoEnviar className="botao">Confirmar negócio</BotaoEnviar>
           <Link href={`/pedidos/${id}`} className="botao-secundario">Voltar</Link>
         </form>
       </div>

@@ -93,6 +93,30 @@ export function porUnidade(valor: number | string | null | undefined, unidade: U
   return `${reais(valor)}/${UNIDADES[unidade]}`;
 }
 
+// Plural das unidades (kg não muda): "3 dúzias", "2 litros".
+const PLURAL: Record<Unidade, string> = {
+  kg: "kg",
+  l: "litros",
+  un: "unidades",
+  duzia: "dúzias",
+  pacote: "pacotes",
+  caixa: "caixas",
+  fardo: "fardos",
+};
+const numeroBr = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+
+// Número como no Brasil (vírgula, sem casas sobrando): 1.5 -> "1,5".
+export function numero(valor: number | string | null | undefined) {
+  if (valor === null || valor === undefined || valor === "") return "–";
+  return numeroBr.format(Number(valor));
+}
+
+// Quantidade com a unidade por extenso: (1.5, "kg") -> "1,5 kg"; (3, "duzia") -> "3 dúzias".
+export function quantidade(valor: number | string | null | undefined, unidade: Unidade) {
+  const n = Number(valor);
+  return `${numero(valor)} ${Math.abs(n) >= 2 ? (PLURAL[unidade] ?? unidade) : (UNIDADES[unidade] ?? unidade)}`;
+}
+
 export function dataHora(valor: string | Date) {
   return new Date(valor).toLocaleString("pt-BR", {
     day: "2-digit",

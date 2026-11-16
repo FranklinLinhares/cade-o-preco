@@ -27,7 +27,7 @@ async function tentarEntrar(_: EstadoEntrar, form: FormData): Promise<EstadoEntr
   }
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return { erro: "O app ainda não está ligado ao banco de dados. Confira as variáveis do Supabase na Vercel." };
+    return { erro: "O app está fora do ar no momento. Tente de novo daqui a pouco." };
   }
 
   const supabase = await criarClienteServidor();

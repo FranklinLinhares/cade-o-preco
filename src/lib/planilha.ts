@@ -51,7 +51,12 @@ async function lerLinhas(arquivo: File) {
     linhas = lerCsv(await arquivo.text());
   } else {
     const { readSheet } = await import("read-excel-file/universal");
-    linhas = await readSheet(arquivo);
+    try {
+      linhas = await readSheet(arquivo);
+    } catch {
+      // A biblioteca explica o erro em inglês; quem usa o app precisa saber o que fazer.
+      throw new Error("Não deu para ler esta planilha. Salve como .xlsx ou .csv (no Excel: Salvar como) e envie de novo.");
+    }
   }
   const cabecalho = (linhas[0] ?? []).map(sem);
   const coluna = (...nomes: string[]) => cabecalho.findIndex((c) => nomes.some((n) => c.startsWith(n)));

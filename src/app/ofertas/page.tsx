@@ -2,11 +2,12 @@ import Link from "next/link";
 import { Compartilhar } from "@/components/Compartilhar";
 import { exigirEmpresa } from "@/lib/sessao";
 import { buscarTelefones } from "@/lib/telefones";
-import { CATEGORIAS, PUBLICO, dataHora, porUnidade, type Categoria, type Publico, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, PUBLICO, dataHora, porUnidade, type Categoria, type Publico, type Unidade, quantidade } from "@/lib/dominio";
 import { encerrarOferta, excluirOfertas } from "./acoes";
 import { BarraSelecao, Marcar } from "@/components/Selecao";
 import { ExcluirOferta } from "./ExcluirOferta";
 import { BORDA_CARTAO, Situacao } from "@/components/Situacao";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 
 type Oferta = {
   id: string;
@@ -75,7 +76,7 @@ export default async function MinhasOfertas() {
           <span className="text-sm text-stone-500">Para anunciar, mude para Vender no menu.</span>
         )}
       </div>
-      {ofertas.length === 0 && <p className="text-stone-600">Você ainda não publicou ofertas.</p>}
+      {ofertas.length === 0 && <p className="cartao text-stone-600">Você ainda não publicou ofertas. Toque em <Link href="/ofertas/nova" className="font-medium text-green-800 underline">Nova oferta</Link> para pôr um produto na vitrine, ou envie um folheto ou planilha para publicar vários de uma vez.</p>}
       <BarraSelecao id="excluir-ofertas" acao={excluirOfertas} confirmar="Excluir {n} oferta(s)? Elas saem da vitrine e não dá para desfazer. As compras já feitas continuam em Negócios." />
       <ul className="space-y-3">
         {ofertas.map((o) => {
@@ -89,7 +90,7 @@ export default async function MinhasOfertas() {
           <li key={o.id} className={`cartao space-y-2 ${borda} ${naVitrine || pedido || vencida ? "" : "opacity-60"}`}>
             {pedido && (
               <Situacao tom="pedido">
-                {pedido.n === 1 ? "1 pedido de compra" : `${pedido.n} pedidos de compra`} esperando sua resposta ({pedido.quantidade} {o.unidade})
+                {pedido.n === 1 ? "1 pedido de compra" : `${pedido.n} pedidos de compra`} esperando sua resposta ({quantidade(pedido.quantidade, o.unidade)})
                 <Link href="/negocios" className="botao ml-auto py-1 text-sm">Responder</Link>
               </Situacao>
             )}
@@ -101,7 +102,7 @@ export default async function MinhasOfertas() {
             )}
             {vendido > 0 && (
               <Situacao tom="aceito">
-                Compra aceita: {vendido} {o.unidade} vendido{vendido > 1 ? "s" : ""} para {o.compras.length === 1 ? o.compras[0].comprador?.nome : `${o.compras.length} compradores`}
+                Venda aceita: {quantidade(vendido, o.unidade)} para {o.compras.length === 1 ? o.compras[0].comprador?.nome : `${o.compras.length} compradores`}
               </Situacao>
             )}
             <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -114,7 +115,7 @@ export default async function MinhasOfertas() {
                 </div>
                 <div className="text-sm text-stone-500">
                   {CATEGORIAS[o.categoria]}
-                  {(!o.so_na_loja || Number(o.quantidade_disponivel) > 0) && <> · {o.quantidade_disponivel} {o.unidade}</>} · válida até {dataHora(o.valida_ate)}
+                  {(!o.so_na_loja || Number(o.quantidade_disponivel) > 0) && <> · {quantidade(o.quantidade_disponivel, o.unidade)}</>} · válida até {dataHora(o.valida_ate)}
                   {o.convidados ? <> · Só para {o.convidados.length} cliente{o.convidados.length > 1 ? "s" : ""} escolhido{o.convidados.length > 1 ? "s" : ""}</> : o.vende_para !== "todos" && <> · {PUBLICO[o.vende_para]}</>}
                 </div>
                 </div>
@@ -132,7 +133,7 @@ export default async function MinhasOfertas() {
                 <div className="font-medium">Compras aceitas:</div>
                 <ul className="list-disc pl-5">
                   {o.compras.map((c, n) => (
-                    <li key={n}>{c.comprador?.nome} · {c.quantidade} {o.unidade} · WhatsApp {telefones.get(c.comprador_id) ?? "–"}</li>
+                    <li key={n}>{c.comprador?.nome} · {quantidade(c.quantidade, o.unidade)} · WhatsApp {telefones.get(c.comprador_id) ?? "–"}</li>
                   ))}
                 </ul>
               </div>
@@ -144,7 +145,7 @@ export default async function MinhasOfertas() {
               {naVitrine && (
                 <form action={encerrarOferta}>
                   <input type="hidden" name="id" value={o.id} />
-                  <button className="text-stone-600 hover:underline">Encerrar oferta</button>
+                  <BotaoEnviar className="min-h-11 text-stone-600 hover:underline">Encerrar oferta</BotaoEnviar>
                 </form>
               )}
               <ExcluirOferta id={o.id} />

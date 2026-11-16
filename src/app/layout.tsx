@@ -97,7 +97,7 @@ async function Menu() {
           </form>
         )}
         {empresa && (
-          <Link href="/avisos" title="Avisos" aria-label={`Avisos${naoLidos ? `: ${naoLidos} novos` : ""}`} className="relative grid h-9 w-9 place-items-center rounded-full text-lg leading-none text-stone-600 transition hover:bg-green-50 hover:text-green-800">
+          <Link href="/avisos" title="Avisos" aria-label={`Avisos${naoLidos ? `: ${naoLidos} novos` : ""}`} className="relative grid h-10 w-10 place-items-center rounded-full text-lg leading-none text-stone-600 transition hover:bg-green-50 hover:text-green-800">
             🔔
             {!!naoLidos && (
               <span className="absolute -top-0.5 -right-0.5 min-w-4 animate-bounce rounded-full bg-amber-500 px-1 text-center text-[10px] leading-4 font-bold text-white ring-2 ring-white [animation-iteration-count:2]">{naoLidos > 9 ? "9+" : naoLidos}</span>

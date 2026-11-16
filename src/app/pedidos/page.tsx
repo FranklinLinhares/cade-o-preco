@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { exigirEmpresa } from "@/lib/sessao";
-import { CATEGORIAS, SETORES, dataHora, lerSetor, porUnidade, setorDe, type Categoria, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, SETORES, dataHora, lerSetor, porUnidade, setorDe, type Categoria, type Unidade, quantidade } from "@/lib/dominio";
 import { BarraSelecao, Marcar } from "@/components/Selecao";
 import { BORDA_CARTAO, Situacao, type TomSituacao } from "@/components/Situacao";
 import { buscarOcultos } from "@/lib/ocultos";
@@ -166,7 +166,7 @@ export default async function Pedidos({ searchParams }: PageProps<"/pedidos">) {
               marcadas={marcadas}
               dica={marcadas.length ? "Só aparecem leilões das categorias marcadas, e só delas chega aviso de leilão novo." : "Nenhuma marcada: aparecem leilões de todas as categorias. Marque as que você vende para ver só essas."}
             />
-            {paraLance.length === 0 && <p className="text-stone-600">Nenhum leilão aberto perto de você agora{setor ? ` em ${SETORES[setor].nome}` : ""}{marcadas.length ? " nas categorias marcadas" : ""}.</p>}
+            {paraLance.length === 0 && <p className="cartao text-stone-600">Nenhum leilão aberto perto de você agora{setor ? ` em ${SETORES[setor].nome}` : ""}{marcadas.length ? " nas categorias marcadas" : ""}. Avisamos no sino quando aparecer um. Enquanto isso, publique suas ofertas em <Link href="/ofertas" className="font-medium text-green-800 underline">Minhas ofertas</Link>.</p>}
             {foraDasMarcadas > 0 && (
               <p className="text-sm text-stone-500">Mais {foraDasMarcadas} leilão(ões) perto de você em outras categorias. Marque a categoria acima para ver.</p>
             )}
@@ -178,7 +178,7 @@ export default async function Pedidos({ searchParams }: PageProps<"/pedidos">) {
             <p className="text-sm text-stone-500">Crie um leilão e os fornecedores próximos disputam pelo menor preço. Para dar lances em leilões de outras pessoas, mude para Vender no menu.</p>
             {gruposPerto.length > 0 && <GruposPerto grupos={gruposPerto} />}
             {participacoes.length > 0 && <MinhasParticipacoes participacoes={participacoes} />}
-            {meusLeiloes.length === 0 && <p className="text-stone-600">{setor ? `Nenhum leilão seu em ${SETORES[setor].nome}.` : "Você ainda não criou leilões."}</p>}
+            {meusLeiloes.length === 0 && <p className="text-stone-600">{setor ? `Nenhum leilão seu em ${SETORES[setor].nome}.` : <>Você ainda não criou leilões. Toque em <Link href="/pedidos/novo" className="font-medium text-green-800 underline">Novo leilão</Link>, diga o produto e a quantidade, e os fornecedores perto de você dão o menor preço.</>}</p>}
             <BarraSelecao id="excluir-leiloes" acao={excluirLeiloes} confirmar="Excluir {n} leilão(ões)? Os que ainda estão abertos são cancelados e os fornecedores não podem mais dar lance." />
             <PorCategoria pedidos={meusLeiloes} vendendo={false} lances={lances} eu={empresa.id} />
           </>
@@ -263,7 +263,7 @@ function ListaLeiloes({ pedidos, vendendo, lances, eu }: { pedidos: Linha[]; ven
               <Link href={`/pedidos/${p.id}`} className="block hover:text-green-800">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div>
-                    <div className="text-lg font-semibold">{p.produto} · {p.quantidade} {p.unidade}</div>
+                    <div className="text-lg font-semibold">{p.produto} · {quantidade(p.quantidade, p.unidade)}</div>
                     <div className="text-sm text-stone-500">
                       {CATEGORIAS[p.categoria]}
                       {p.aceita_participantes && <> · <span className="font-medium text-violet-800">Em grupo{p.participantes ? ` · ${p.participantes + 1} pessoas` : ""}</span></>}
@@ -316,13 +316,13 @@ function GruposPerto({ grupos }: { grupos: GrupoPerto[] }) {
           <li key={g.id}>
             <Link href={`/pedidos/${g.id}`} className="flex flex-wrap items-baseline justify-between gap-2 py-2 hover:text-green-800">
               <span>
-                <span className="font-semibold">{g.produto}</span> · {g.quantidade_total} {g.unidade} juntando {g.participantes + 1} pessoa{g.participantes ? "s" : ""}
+                <span className="font-semibold">{g.produto}</span> · {quantidade(g.quantidade_total, g.unidade)} juntando {g.participantes + 1} pessoa{g.participantes ? "s" : ""}
                 <span className="block text-sm text-stone-500">
                   Criado por {g.comprador_nome}, {g.cidade} (até {g.distancia_km} km) · {g.total_lances} lance(s) · encerra {dataHora(g.encerra_em)}
                 </span>
               </span>
               <span className={g.minha_quantidade != null ? "text-sm font-medium text-violet-800" : "botao py-1 text-sm"}>
-                {g.minha_situacao === "pedido" ? "Pedido enviado" : g.minha_quantidade != null ? `Você está com ${g.minha_quantidade} ${g.unidade}` : "Quero também"}
+                {g.minha_situacao === "pedido" ? "Pedido enviado" : g.minha_quantidade != null ? `Você está com ${quantidade(g.minha_quantidade, g.unidade)}` : "Quero também"}
               </span>
             </Link>
           </li>
@@ -351,7 +351,7 @@ function MinhasParticipacoes({ participacoes }: { participacoes: Participacao[] 
           <li key={p.pedido.id}>
             <Link href={`/pedidos/${p.pedido.id}`} className="flex flex-wrap items-baseline justify-between gap-2 py-3 hover:text-green-800">
               <span>
-                <span className="font-semibold">{p.pedido.produto}</span> · sua parte: {p.quantidade} {p.pedido.unidade}
+                <span className="font-semibold">{p.pedido.produto}</span> · sua parte: {quantidade(p.quantidade, p.pedido.unidade)}
               </span>
               <span className={p.situacao === "confirmar" && p.pedido.status !== "cancelado" ? "botao py-1 text-sm" : "text-sm font-medium text-violet-800"}>
                 {p.pedido.status === "cancelado" ? "Leilão cancelado" : TEXTO_PARTICIPACAO[p.situacao]}

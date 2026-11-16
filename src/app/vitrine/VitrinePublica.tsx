@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CATEGORIAS, PUBLICO, SETORES, porUnidade, setorDe, type Categoria, type Setor, type Publico, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, PUBLICO, SETORES, porUnidade, setorDe, type Categoria, type Setor, type Publico, type Unidade, quantidade } from "@/lib/dominio";
 import { Situacao } from "@/components/Situacao";
 import { SeletorSetor } from "@/components/SeletorSetor";
 
@@ -95,7 +95,7 @@ export async function VitrinePublica({ supabase, termo, setor }: { supabase: Sup
                           {o.agricultor && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Agricultura familiar</span>}
                           <div className="text-sm text-stone-500">
                             {o.cidade}/{o.uf}
-                            {(!o.so_na_loja || Number(o.quantidade_disponivel) > 0) && <> · {o.quantidade_disponivel} {u} disponíveis</>}
+                            {(!o.so_na_loja || Number(o.quantidade_disponivel) > 0) && <> · {quantidade(o.quantidade_disponivel, u)} disponíveis</>}
                           </div>
                         </div>
                         <div className="ml-auto text-right">

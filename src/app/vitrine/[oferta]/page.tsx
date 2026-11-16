@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { contaAtual, usuarioAtual } from "@/lib/sessao";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { porUnidade, reais, type Unidade } from "@/lib/dominio";
+import { porUnidade, reais, type Unidade, quantidade as qtdUnidade } from "@/lib/dominio";
 import { Compartilhar } from "@/components/Compartilhar";
 import type { OfertaPublica } from "../VitrinePublica";
 import { CartaoParte } from "@/components/CartaoParte";
@@ -86,7 +86,7 @@ export default async function ConfirmarCompra({ params, searchParams }: PageProp
       <h1 className="text-2xl font-bold">Confirmar compra</h1>
       <div className="cartao space-y-1">
         <p className="text-lg font-semibold">{oferta.produto}</p>
-        <p>{porUnidade(oferta.preco_unitario, oferta.unidade)} · {oferta.quantidade_disponivel} {oferta.unidade} disponíveis</p>
+        <p>{porUnidade(oferta.preco_unitario, oferta.unidade)} · {qtdUnidade(oferta.quantidade_disponivel, oferta.unidade)} disponíveis</p>
         {oferta.validade && <p className="text-sm text-stone-500">Validade {new Date(oferta.validade).toLocaleDateString("pt-BR")}</p>}
         {oferta.descricao && <p className="text-sm">{oferta.descricao}</p>}
       </div>
@@ -96,7 +96,7 @@ export default async function ConfirmarCompra({ params, searchParams }: PageProp
         <div className="cartao space-y-2">
           <p className="text-sm text-stone-600">
             Confira a quantidade e quem vende. O pedido vai para o vendedor e a quantidade fica reservada. Quando ele aceitar, o WhatsApp dele aparece em Negócios para vocês combinarem a entrega.
-            Total estimado para {qtd} {oferta.unidade}: <strong>{reais(qtd * Number(oferta.preco_unitario))}</strong>.
+            Total estimado para {qtdUnidade(qtd, oferta.unidade)}: <strong>{reais(qtd * Number(oferta.preco_unitario))}</strong>.
           </p>
           <Comprar
             oferta={oferta.id}
@@ -144,7 +144,7 @@ async function OfertaParaVisitante({ id }: { id: string }) {
           {oferta.agricultor && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Agricultura familiar</span>}
         </p>
         <p className="text-sm text-stone-500">
-          {(!oferta.so_na_loja || Number(oferta.quantidade_disponivel) > 0) && <>{oferta.quantidade_disponivel} {u} disponíveis · </>}
+          {(!oferta.so_na_loja || Number(oferta.quantidade_disponivel) > 0) && <>{qtdUnidade(oferta.quantidade_disponivel, u)} disponíveis · </>}
           válida até {new Date(oferta.valida_ate).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}
           {oferta.validade && <> · validade do produto {new Date(oferta.validade).toLocaleDateString("pt-BR")}</>}
         </p>

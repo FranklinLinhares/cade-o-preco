@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { comprarOferta, type EstadoCompra } from "./acoes";
+import { UNIDADES, type Unidade } from "@/lib/dominio";
 
-export function Comprar({ oferta, maximo, unidade, fornecedor, quantidade }: { oferta: string; maximo: number; unidade: string; fornecedor: string; quantidade?: number }) {
+export function Comprar({ oferta, maximo, unidade, fornecedor, quantidade }: { oferta: string; maximo: number; unidade: Unidade; fornecedor: string; quantidade?: number }) {
   const [estado, acao, enviando] = useActionState<EstadoCompra, FormData>(comprarOferta, {});
   if (estado.ok) {
     return (
@@ -22,7 +23,7 @@ export function Comprar({ oferta, maximo, unidade, fornecedor, quantidade }: { o
       <label className="flex items-center gap-1">
         Quantidade
         <input name="quantidade" inputMode="decimal" autoComplete="off" required defaultValue={String(quantidade ?? Math.min(1, maximo)).replace(".", ",")} className="campo w-24" />
-        {unidade}
+        {UNIDADES[unidade] ?? unidade}
       </label>
       <button disabled={enviando} className="botao min-h-11">{enviando ? "Enviando..." : "Enviar pedido ao vendedor"}</button>
       {estado.erro && <span className="text-red-700">{estado.erro}</span>}

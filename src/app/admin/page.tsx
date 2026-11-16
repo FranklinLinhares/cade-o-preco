@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirEmpresa } from "@/lib/sessao";
-import { dataHora, porUnidade, reais, type Unidade } from "@/lib/dominio";
+import { dataHora, porUnidade, reais, type Unidade, quantidade } from "@/lib/dominio";
 import { BotaoConfirmar } from "@/components/BotaoConfirmar";
 import { bloquearConta, desbloquearConta, devolverOferta, tirarLeilao, tirarOferta } from "./acoes";
 
@@ -261,7 +261,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
               <li key={l.id} className={`cartao space-y-2 ${l.removido_em ? "border-red-200 bg-red-50/50" : ""}`}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <Link href={`/pedidos/${l.id}`} className="font-semibold hover:underline">{l.produto}</Link>
-                  <span className="text-sm">{l.quantidade} {l.unidade} · {l.lances} lance(s)</span>
+                  <span className="text-sm">{quantidade(l.quantidade, l.unidade)} · {l.lances} lance(s)</span>
                 </div>
                 <p className="text-sm text-stone-600">
                   <Link href={`/perfil/${l.comprador_id}`} className="underline">{l.comprador_nome}</Link> · {l.cidade}/{l.uf} · criado {dataHora(l.criado_em)} ·{" "}

@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ erro: "Entre na sua conta." }, { status: 401 });
-  if (!iaDisponivel()) return NextResponse.json({ erro: "A IA não está configurada neste servidor." }, { status: 503 });
+  if (!iaDisponivel()) return NextResponse.json({ erro: "A leitura automática está indisponível agora. Preencha os dados à mão ou tente mais tarde." }, { status: 503 });
 
   const { arquivos } = (await request.json()) as { arquivos?: ArquivoFolheto[] };
   if (!Array.isArray(arquivos) || arquivos.length === 0 || arquivos.length > 6) {

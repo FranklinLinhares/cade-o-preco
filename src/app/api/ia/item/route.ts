@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ erro: "Entre na sua conta." }, { status: 401 });
-  if (!iaDisponivel()) return NextResponse.json({ erro: "A IA não está configurada neste servidor." }, { status: 503 });
+  if (!iaDisponivel()) return NextResponse.json({ erro: "A leitura automática está indisponível agora. Preencha os dados à mão ou tente mais tarde." }, { status: 503 });
 
   const { texto } = (await request.json()) as { texto?: string };
   if (!texto || texto.trim().length < 3 || texto.length > 2000) {

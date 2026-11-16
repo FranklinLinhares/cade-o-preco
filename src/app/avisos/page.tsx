@@ -6,6 +6,7 @@ import { BotaoConfirmar } from "@/components/BotaoConfirmar";
 import { excluirAvisos, excluirLidos, marcarTodosLidos, removerAlerta } from "./acoes";
 import { NovoAlerta } from "./NovoAlerta";
 import { AvisosNoCelular } from "./AvisosNoCelular";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 
 type Aviso = { id: string; texto: string; lido: boolean; criado_em: string };
 type Alerta = { id: string; produto: string; unidade: Unidade; preco_maximo: number };
@@ -30,7 +31,7 @@ export default async function Avisos({ searchParams }: PageProps<"/avisos">) {
         <div className="flex flex-wrap gap-2">
           {naoLidos > 0 && (
             <form action={marcarTodosLidos}>
-              <button className="botao-secundario py-1 text-sm">Marcar todos como lidos</button>
+              <BotaoEnviar className="botao-secundario min-h-11 text-sm">Marcar todos como lidos</BotaoEnviar>
             </form>
           )}
           {lidos > 0 && (
@@ -87,7 +88,7 @@ export default async function Avisos({ searchParams }: PageProps<"/avisos">) {
                 </span>
                 <form action={removerAlerta}>
                   <input type="hidden" name="id" value={a.id} />
-                  <button className="text-sm text-red-700 underline">Remover</button>
+                  <BotaoEnviar className="min-h-11 text-sm text-red-700 underline">Remover</BotaoEnviar>
                 </form>
               </li>
             ))}

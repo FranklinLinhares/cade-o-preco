@@ -1,6 +1,7 @@
 "use client";
 
 import { excluirOferta } from "./acoes";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 
 // Pede confirmação antes de excluir, porque não dá para desfazer.
 export function ExcluirOferta({ id }: { id: string }) {
@@ -12,7 +13,7 @@ export function ExcluirOferta({ id }: { id: string }) {
       }}
     >
       <input type="hidden" name="id" value={id} />
-      <button className="text-sm font-medium text-red-700 hover:underline">Excluir</button>
+      <BotaoEnviar className="min-h-11 text-sm font-medium text-red-700 hover:underline">Excluir</BotaoEnviar>
     </form>
   );
 }

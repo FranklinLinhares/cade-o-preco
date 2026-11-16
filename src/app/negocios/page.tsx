@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { exigirEmpresa } from "@/lib/sessao";
-import { dataHora, porUnidade, reais, type Unidade } from "@/lib/dominio";
+import { dataHora, porUnidade, reais, type Unidade, quantidade } from "@/lib/dominio";
 import { buscarTelefones } from "@/lib/telefones";
 import { ConclusaoNegocio } from "@/components/ConclusaoNegocio";
 import { cancelarReserva, excluirNegocios, responderReserva } from "./acoes";
@@ -10,6 +10,7 @@ import { BORDA_CARTAO, Situacao, type TomSituacao } from "@/components/Situacao"
 import { BotaoConfirmar } from "@/components/BotaoConfirmar";
 import { trocarModo } from "@/app/cadastro/modo";
 import { LinkWhatsApp } from "@/components/LinkWhatsApp";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 
 type Negocio = {
   id: string;
@@ -106,7 +107,7 @@ export default async function Negocios() {
           <span>Você tem {pedidosRecebidos.length} pedido(s) de compra esperando sua resposta no modo Vender.</span>
           <input type="hidden" name="papel" value="fornecedor" />
           <input type="hidden" name="voltar" value="/negocios" />
-          <button className="botao py-1">Mudar para Vender</button>
+          <BotaoEnviar className="botao min-h-11">Mudar para Vender</BotaoEnviar>
         </form>
       )}
       <BarraSelecao id="excluir-negocios" acao={excluirNegocios} confirmar="Tirar {n} item(ns) da sua lista de negócios? Eles somem só para você; a outra parte e as avaliações continuam. Pedido seu ainda aguardando é cancelado." />
@@ -119,12 +120,12 @@ export default async function Negocios() {
                 <Situacao tom="pedido">Pedido de compra esperando sua resposta</Situacao>
                 <div>
                   <Link href={`/perfil/${r.comprador?.id}`} className="font-medium text-green-800 underline">{r.comprador?.nome}</Link> quer comprar{" "}
-                  <strong>{r.quantidade} {r.unidade} de {r.produto}</strong> a {porUnidade(r.preco_unitario, r.unidade)}.
+                  <strong>{quantidade(r.quantidade, r.unidade)} de {r.produto}</strong> a {porUnidade(r.preco_unitario, r.unidade)}.
                   <div className="text-sm text-stone-500">{dataHora(r.criado_em)} · total {reais(r.preco_unitario * r.quantidade)} · responda até {prazo(r.criado_em)}</div>
                 </div>
                 <form action={responderReserva} className="flex gap-2">
                   <input type="hidden" name="reserva" value={r.id} />
-                  <button name="resposta" value="aceitar" className="botao">Aceitar</button>
+                  <BotaoEnviar name="resposta" value="aceitar" className="botao">Aceitar</BotaoEnviar>
                   <BotaoConfirmar name="resposta" value="recusar" className="botao-secundario" pergunta="Recusar este pedido? A quantidade volta para a sua oferta e o comprador é avisado.">Recusar</BotaoConfirmar>
                 </form>
                 <p className="text-xs text-stone-500">Ao aceitar, vocês veem o WhatsApp um do outro. Ao recusar, a quantidade volta para a oferta.</p>
@@ -144,7 +145,7 @@ export default async function Negocios() {
                 <div className="flex items-start gap-3">
                 <Marcar form="excluir-negocios" valor={`r:${r.id}`} nome={r.produto} />
                 <div>
-                  <span className="font-medium">{r.quantidade} {r.unidade} de {r.produto}</span> com {r.fornecedor?.nome}
+                  <span className="font-medium">{quantidade(r.quantidade, r.unidade)} de {r.produto}</span> com {r.fornecedor?.nome}
                   <div className="text-sm text-stone-500">
                     {dataHora(r.criado_em)}
                     {r.situacao === "aguardando" && ` · sem resposta até ${prazo(r.criado_em)}, o pedido é cancelado`}
@@ -181,7 +182,7 @@ export default async function Negocios() {
                 <div>
                   <span className="font-semibold">{n.produto}</span>
                   <div className="text-sm text-stone-500">
-                    {n.quantidade} {n.unidade} a {porUnidade(n.preco_unitario, n.unidade)} · {n.origem === "leilao" ? "leilão" : "vitrine"} · {dataHora(n.criado_em)}
+                    {quantidade(n.quantidade, n.unidade)} a {porUnidade(n.preco_unitario, n.unidade)} · {n.origem === "leilao" ? "leilão" : "vitrine"} · {dataHora(n.criado_em)}
                   </div>
                 </div>
                 </div>

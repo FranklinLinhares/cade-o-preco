@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirEmpresa } from "@/lib/sessao";
-import { CATEGORIAS, dataHora, porUnidade, reais, type Categoria, type ReferenciaPreco as Referencia, type Unidade } from "@/lib/dominio";
+import { CATEGORIAS, dataHora, porUnidade, reais, type Categoria, type ReferenciaPreco as Referencia, type Unidade, quantidade } from "@/lib/dominio";
 import { ReferenciaPreco } from "@/components/ReferenciaPreco";
 import { SeloPreco } from "@/components/SeloPreco";
 import { mediaParaPedido } from "@/lib/escudo";
@@ -173,7 +173,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
     ? `Leilão fechado. Seu último lance foi ${porUnidade(meuMenor.preco_unitario, u)}; você pode baixar.`
     : "Leilão fechado: você não vê os outros lances.";
   if (pedido.preco_maximo) dica += ` Preço máximo: ${porUnidade(pedido.preco_maximo, u)}.`;
-  if (pessoasNoGrupo > 0) dica = `Leilão em grupo: ${pessoasNoGrupo + 1} compradores somam ${quantidadeTotal} ${u}. Se vencer, você escolhe para quem do grupo vender, no preço do seu lance. ` + dica;
+  if (pessoasNoGrupo > 0) dica = `Leilão em grupo: ${pessoasNoGrupo + 1} compradores somam ${quantidade(quantidadeTotal, u)}. Se vencer, você escolhe para quem do grupo vender, no preço do seu lance. ` + dica;
   // Dois dias depois do prazo sem escolher o vencedor, o grupo deixa de prender as pessoas
   // (o banco libera a saída e o cancelamento na mesma hora).
   const prazoParaEscolher = new Date(new Date(pedido.encerra_em).getTime() + 2 * 86_400_000);
@@ -197,7 +197,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
           </span>
         </div>
         <p className="text-stone-600">
-          {quantidadeTotal} {u}{pessoasNoGrupo > 0 && <> ({pessoasNoGrupo + 1} pessoas)</>} · {CATEGORIAS[pedido.categoria]} ·{" "}
+          {quantidade(quantidadeTotal, u)}{pessoasNoGrupo > 0 && <> ({pessoasNoGrupo + 1} pessoas)</>} · {CATEGORIAS[pedido.categoria]} ·{" "}
           <Link href={`/perfil/${pedido.comprador_id}`} className="hover:underline">{pedido.comprador.nome}</Link>, {pedido.comprador.cidade}{" "}
           <Estrelas nota={repComprador?.nota_comprador} total={repComprador?.avaliacoes_comprador} />
         </p>
@@ -211,7 +211,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
         </p>
         {souComprador && aberto && (
           <Compartilhar
-            texto={`Estou comprando ${quantidadeTotal} ${u} de ${pedido.produto}. Dê seu lance no Cadê o Preço até ${dataHora(pedido.encerra_em)}:`}
+            texto={`Estou comprando ${quantidade(quantidadeTotal, u)} de ${pedido.produto}. Dê seu lance no Cadê o Preço até ${dataHora(pedido.encerra_em)}:`}
             caminho={`/pedidos/${pedido.id}`}
             rotulo={pedido.convidados ? "Avisar os convidados no WhatsApp" : "Chamar fornecedores no WhatsApp"}
           />
@@ -233,7 +233,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
             <form action={confirmarCompraGrupo} className="mt-2 space-y-2 rounded-lg border border-green-300 bg-white p-3">
               <input type="hidden" name="pedido" value={id} />
               <p className="text-sm">
-                Quer comprar a sua parte, {minhaParte.quantidade} {u}, por <strong>{reais(Number(vencedor.preco_unitario) * Number(minhaParte.quantidade))}</strong> ({porUnidade(vencedor.preco_unitario, u)})?
+                Quer comprar a sua parte, {quantidade(minhaParte.quantidade, u)}, por <strong>{reais(Number(vencedor.preco_unitario) * Number(minhaParte.quantidade))}</strong> ({porUnidade(vencedor.preco_unitario, u)})?
               </p>
               <div className="flex flex-wrap gap-3">
                 <BotaoEnviar name="resposta" value="confirmar" className="botao min-h-11 text-sm">Confirmar compra</BotaoEnviar>
@@ -243,14 +243,14 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
           )}
           {minhaParte?.situacao === "desistiu" && <p className="text-sm text-stone-600">Você desistiu da compra da sua parte.</p>}
           {minhaParte?.situacao === "aguardando" && (
-            <p className="text-sm">Sua parte ({minhaParte.quantidade} {u}) está esperando {vencedor.fornecedor?.nome} aceitar vender. Avisamos quando ele responder.</p>
+            <p className="text-sm">Sua parte ({quantidade(minhaParte.quantidade, u)}) está esperando {vencedor.fornecedor?.nome} aceitar vender. Avisamos quando ele responder.</p>
           )}
           {minhaParte?.situacao === "recusado" && (
             <p className="text-sm text-red-800">{vencedor.fornecedor?.nome} recusou vender a sua parte. Você pode criar um leilão só seu para este produto.</p>
           )}
           {minhaCompra && (
             <>
-              {pessoasNoGrupo > 0 && <p className="text-sm">Sua parte: {minhaCompra.quantidade} {u} · {reais(Number(vencedor.preco_unitario) * Number(minhaCompra.quantidade))}</p>}
+              {pessoasNoGrupo > 0 && <p className="text-sm">Sua parte: {quantidade(minhaCompra.quantidade, u)} · {reais(Number(vencedor.preco_unitario) * Number(minhaCompra.quantidade))}</p>}
               <div className="mt-3 border-t border-green-200 pt-3">
                 <ConclusaoNegocio compra={minhaCompra} souComprador nomeOutro={vencedor.fornecedor?.nome ?? ""} notaDada={conclusao.notas.get(minhaCompra.id)} />
               </div>
@@ -270,7 +270,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
                   <li key={p.comprador_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <span>
                       <Link href={`/perfil/${p.comprador_id}`} className="font-medium hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>{" "}
-                      <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {p.quantidade} {u} · {reais(Number(vencedor.preco_unitario) * Number(p.quantidade))}
+                      <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {quantidade(p.quantidade, u)} · {reais(Number(vencedor.preco_unitario) * Number(p.quantidade))}
                     </span>
                     {p.situacao === "aguardando" ? (
                       <form action={responderParticipante} className="flex gap-3">
@@ -291,7 +291,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
             {conclusao.compras.map((c) => (
               <li key={c.id} className="space-y-2 py-2">
                 <p>
-                  {c.comprador?.nome ?? "Comprador"} · {c.quantidade} {u} · {reais(Number(vencedor.preco_unitario) * Number(c.quantidade))} ·{" "}
+                  {c.comprador?.nome ?? "Comprador"} · {quantidade(c.quantidade, u)} · {reais(Number(vencedor.preco_unitario) * Number(c.quantidade))} ·{" "}
                   <LinkWhatsApp telefone={telefones.get(c.comprador_id)} />
                 </p>
                 <ConclusaoNegocio compra={c} souComprador={false} nomeOutro={c.comprador?.nome ?? ""} notaDada={conclusao.notas.get(c.id)} />
@@ -306,7 +306,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       )}
       {pedido.aceita_participantes && !souComprador && !aberto && pedido.status === "aberto" && minhaParte?.situacao === "no_grupo" && (
         <section className="cartao space-y-2 border-violet-300 bg-violet-50">
-          <h2 className="font-semibold">Você está no grupo com {Number(minhaParte.quantidade)} {u}</h2>
+          <h2 className="font-semibold">Você está no grupo com {quantidade(Number(minhaParte.quantidade), u)}</h2>
           {grupoLiberado ? (
             <>
               <p className="text-sm text-stone-600">Quem criou não escolheu o vencedor em 2 dias depois do prazo. Se não quiser mais esperar, você pode sair do grupo.</p>
@@ -319,7 +319,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       )}
       {souComprador && pedido.aceita_participantes && (
         <section className="cartao space-y-2 border-violet-300">
-          <h2 className="font-semibold">Leilão em grupo · {doGrupo.length === 0 ? "ninguém no grupo ainda" : `${doGrupo.length + 1} pessoas, ${quantidadeTotal} ${u}`}</h2>
+          <h2 className="font-semibold">Leilão em grupo · {doGrupo.length === 0 ? "ninguém no grupo ainda" : `${doGrupo.length + 1} pessoas, ${quantidade(quantidadeTotal, u)}`}</h2>
           <p className="text-sm text-stone-600">Quem mora a até 5 km pode pedir para entrar com a própria quantidade, e você escolhe quem participa. Os vendedores veem quem está no grupo. Quando você escolher o vencedor, a sua compra fecha na hora e cada pessoa do grupo confirma se quer comprar.</p>
           {pedidosParaEntrar.length > 0 && aberto && (
             <div className="space-y-1 rounded-lg border border-violet-300 bg-violet-50 p-3">
@@ -331,7 +331,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
                     <li key={p.comprador_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                       <span>
                         <Link href={`/perfil/${p.comprador_id}`} className="font-medium hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>{" "}
-                        <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {p.quantidade} {u}
+                        <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} /> · {quantidade(p.quantidade, u)}
                       </span>
                       <form action={responderPedidoGrupo} className="flex gap-3">
                         <input type="hidden" name="pedido" value={id} />
@@ -347,11 +347,11 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
           )}
           {doGrupo.length > 0 && (
             <ul className="divide-y divide-stone-100 text-sm">
-              <li className="flex justify-between py-1"><span>Você</span><span>{pedido.quantidade} {u}</span></li>
+              <li className="flex justify-between py-1"><span>Você</span><span>{quantidade(pedido.quantidade, u)}</span></li>
               {doGrupo.map((p) => (
                 <li key={p.comprador_id} className="flex justify-between py-1">
                   <Link href={`/perfil/${p.comprador_id}`} className="hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>
-                  <span>{p.quantidade} {u}{SITUACAO_GRUPO[p.situacao] && <span className="text-stone-500"> · {SITUACAO_GRUPO[p.situacao]}</span>}</span>
+                  <span>{quantidade(p.quantidade, u)}{SITUACAO_GRUPO[p.situacao] && <span className="text-stone-500"> · {SITUACAO_GRUPO[p.situacao]}</span>}</span>
                 </li>
               ))}
             </ul>
@@ -360,12 +360,12 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       )}
       {!souComprador && !souParticipante && empresa.papel === "fornecedor" && aberto && doGrupo.length > 0 && (
         <section className="cartao space-y-2 border-violet-300">
-          <h2 className="font-semibold">Quem está comprando · {doGrupo.length + 1} pessoas, {quantidadeTotal} {u}</h2>
+          <h2 className="font-semibold">Quem está comprando · {doGrupo.length + 1} pessoas, {quantidade(quantidadeTotal, u)}</h2>
           <p className="text-sm text-stone-600">Se você vencer, a compra de quem criou o leilão fecha na hora. Cada pessoa do grupo confirma se quer comprar, e você escolhe para quem aceita vender, no preço do seu lance.</p>
           <ul className="divide-y divide-stone-100 text-sm">
             <li className="flex justify-between py-1">
               <span><Link href={`/perfil/${pedido.comprador_id}`} className="hover:underline">{pedido.comprador.nome}</Link> (criou o leilão)</span>
-              <span>{pedido.quantidade} {u}</span>
+              <span>{quantidade(pedido.quantidade, u)}</span>
             </li>
             {doGrupo.map((p) => {
               const rep = reputacao.get(p.comprador_id);
@@ -375,7 +375,7 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
                     <Link href={`/perfil/${p.comprador_id}`} className="hover:underline">{p.comprador?.nome ?? "Comprador"}</Link>{" "}
                     <Estrelas nota={rep?.nota_comprador} total={rep?.avaliacoes_comprador} />
                   </span>
-                  <span>{p.quantidade} {u}</span>
+                  <span>{quantidade(p.quantidade, u)}</span>
                 </li>
               );
             })}

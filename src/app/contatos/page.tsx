@@ -3,6 +3,7 @@ import { exigirEmpresa } from "@/lib/sessao";
 import { buscarContatos, buscarContatosManuais, type Contato, type ContatoManual, type TipoContato } from "@/lib/contatos";
 import { adicionarContato, removerContato, removerContatoManual } from "./acoes";
 import { NovoContato } from "./NovoContato";
+import { BotaoEnviar } from "@/components/BotaoEnviar";
 
 // Meus contatos: fornecedores e clientes de confiança, para convidar em leilões e ofertas.
 export default async function MeusContatos({ searchParams }: PageProps<"/contatos">) {
@@ -50,7 +51,7 @@ export default async function MeusContatos({ searchParams }: PageProps<"/contato
                     <form key={tipo} action={adicionarContato}>
                       <input type="hidden" name="contato" value={c.id} />
                       <input type="hidden" name="tipo" value={tipo} />
-                      <button className="botao-secundario py-1 text-sm">+ {tipo === "fornecedor" ? "Fornecedor" : "Cliente"}</button>
+                      <BotaoEnviar className="botao-secundario min-h-11 text-sm">+ {tipo === "fornecedor" ? "Fornecedor" : "Cliente"}</BotaoEnviar>
                     </form>
                   ),
                 )}
@@ -98,7 +99,7 @@ function Lista({ titulo, vazio, tipo, contatos, manuais }: { titulo: string; vaz
             <form action={removerContato}>
               <input type="hidden" name="contato" value={c.id} />
               <input type="hidden" name="tipo" value={tipo} />
-              <button className="text-sm text-red-700 hover:underline">Remover</button>
+              <BotaoEnviar className="min-h-11 text-sm text-red-700 hover:underline">Remover</BotaoEnviar>
             </form>
           </li>
         ))}
@@ -123,7 +124,7 @@ function Lista({ titulo, vazio, tipo, contatos, manuais }: { titulo: string; vaz
             </div>
             <form action={removerContatoManual}>
               <input type="hidden" name="id" value={c.id} />
-              <button className="text-sm text-red-700 hover:underline">Remover</button>
+              <BotaoEnviar className="min-h-11 text-sm text-red-700 hover:underline">Remover</BotaoEnviar>
             </form>
           </li>
         ))}

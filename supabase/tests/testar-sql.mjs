@@ -415,6 +415,14 @@ await como(ids.atacado, `insert into ofertas (fornecedor_id, produto, produto_ch
 assert.ok(!(await avisos(ids.restaurante)).some((t) => t.includes("Cebola")), "acima do preço não avisa");
 await como(ids.atacado, `update ofertas set preco_unitario = 3.80 where produto_chave = 'cebola'`);
 assert.ok((await avisos(ids.restaurante)).some((t) => t.includes("Alerta de preço: Cebola a R$ 3,80")), "baixou de preço e avisou");
+// Pausar e publicar de novo no mesmo preço não repete o alerta (0040).
+const alertasCebola = async () => (await avisos(ids.restaurante)).filter((t) => t.includes("Alerta de preço: Cebola")).length;
+const antesDeRepublicar = await alertasCebola();
+await como(ids.atacado, `update ofertas set ativa = false where produto_chave = 'cebola'`);
+await como(ids.atacado, `update ofertas set ativa = true where produto_chave = 'cebola'`);
+assert.equal(await alertasCebola(), antesDeRepublicar, "republicar não repete o alerta");
+await como(ids.atacado, `update ofertas set preco_unitario = 3.50 where produto_chave = 'cebola'`);
+assert.equal(await alertasCebola(), antesDeRepublicar + 1, "baixar de novo avisa de novo");
 
 // Funções internas e chamadas sem login ficam fechadas.
 const pode = async (papel, funcao) =>
@@ -718,5 +726,55 @@ assert.ok(retirado.removido_em);
 await falha(ids.pessoa, `select admin_tirar_leilao($1)`, [leilaoRetirar], /leilão aberto/);
 const registros = (await como(ids.pessoa, `select * from admin_ver_registros()`)).rows;
 assert.equal(registros.length, 5, "cada ação fica registrada");
+
+// 0040: quem esteve no grupo não dá lance nele (vendedor que entra como comprador, vê e sai).
+const grupoEspiao = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes, lances_visiveis)
+  values ($1, 'Feijão', 'feijao', 'graos', 'kg', 10, now() + interval '1 day', true, false) returning id`, [g.dona])).rows[0].id;
+await db.query(`update empresas set papel = 'comprador' where id = $1`, [g.vendedor]);
+await como(g.vendedor, `select entrar_no_grupo($1, 5)`, [grupoEspiao]);
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [grupoEspiao, g.vendedor]);
+await como(g.vendedor, `select sair_do_grupo($1)`, [grupoEspiao]);
+await db.query(`update empresas set papel = 'fornecedor' where id = $1`, [g.vendedor]);
+await falha(g.vendedor, `select dar_lance($1, 4)`, [grupoEspiao], /participou do grupo/);
+// Quem só pediu para entrar e cancelou (nunca viu os lances) continua podendo dar lance.
+await db.query(`update empresas set papel = 'comprador' where id = $1`, [g.vendedor]);
+const grupoSoPedido = (await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em, aceita_participantes)
+  values ($1, 'Milho', 'milho', 'graos', 'kg', 10, now() + interval '1 day', true) returning id`, [g.dona])).rows[0].id;
+await como(g.vendedor, `select entrar_no_grupo($1, 5)`, [grupoSoPedido]);
+await como(g.vendedor, `select sair_do_grupo($1)`, [grupoSoPedido]);
+await db.query(`update empresas set papel = 'fornecedor' where id = $1`, [g.vendedor]);
+await como(g.vendedor, `select dar_lance($1, 4)`, [grupoSoPedido]);
+
+// 0040: grupo vencido sem escolha libera saída e cancelamento depois de 2 dias.
+await como(g.vizinho, `select entrar_no_grupo($1, 5)`, [grupoSoPedido]);
+await como(g.dona, `select responder_pedido_grupo($1, $2, true)`, [grupoSoPedido, g.vizinho]);
+await db.query(`update pedidos set criado_em = now() - interval '5 days', encerra_em = now() - interval '1 day' where id = $1`, [grupoSoPedido]);
+await falha(g.vizinho, `select sair_do_grupo($1)`, [grupoSoPedido], /encerrado/);
+assert.equal((await como(g.dona, `select grupo_travado($1) t`, [grupoSoPedido])).rows[0].t, true, "travado logo depois do prazo");
+await db.query(`update pedidos set encerra_em = now() - interval '3 days' where id = $1`, [grupoSoPedido]);
+assert.equal((await como(g.dona, `select grupo_travado($1) t`, [grupoSoPedido])).rows[0].t, false, "2 dias depois do prazo, destrava");
+await como(g.vizinho, `select sair_do_grupo($1)`, [grupoSoPedido]);
+await como(g.dona, `update pedidos set status = 'cancelado' where id = $1`, [grupoSoPedido]);
+assert.equal((await db.query(`select status from pedidos where id = $1`, [grupoSoPedido])).rows[0].status, "cancelado", "quem criou cancela o grupo vencido");
+
+// 0040: no máximo 5 avisos de "leilão novo" por hora da mesma conta para a mesma pessoa.
+for (let i = 0; i < 7; i++) {
+  await como(g.dona, `insert into pedidos (comprador_id, produto, produto_chave, categoria, unidade, quantidade, encerra_em)
+    values ($1, 'Açúcar ' || $2, 'acucar', 'mercearia', 'kg', 10, now() + interval '1 day')`, [g.dona, String(i)]);
+}
+const leiloesNovos = Number((await db.query(`select count(*) n from avisos where empresa_id = $1 and remetente_id = $2 and texto like 'Leilão novo%' and criado_em > now() - interval '1 hour'`, [g.vendedor, g.dona])).rows[0].n);
+assert.ok(leiloesNovos > 0 && leiloesNovos <= 5, `até 5 avisos de leilão novo por hora (recebeu ${leiloesNovos})`);
+
+// 0040: até 50 contatos novos por hora.
+await db.exec(`
+  insert into auth.users select ('00000000-0000-0000-0001-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 51) n;
+  insert into empresas (id, papel, tipo_documento, documento, nome, telefone, cidade, uf, lat, lng)
+  select ('00000000-0000-0000-0001-' || lpad(n::text, 12, '0'))::uuid, 'fornecedor', 'cpf', '0007' || lpad(n::text, 7, '0'), 'Loja ' || n, '1', 'X', 'PB', 0, 0
+  from generate_series(1, 51) n;
+  delete from contatos where dono_id = '${g.longe}';
+  insert into contatos (dono_id, contato_id, tipo)
+  select '${g.longe}', ('00000000-0000-0000-0001-' || lpad(n::text, 12, '0'))::uuid, 'fornecedor' from generate_series(1, 50) n;
+`);
+await falha(g.longe, `insert into contatos (dono_id, contato_id, tipo) values ($1, '00000000-0000-0000-0001-000000000051', 'fornecedor')`, [g.longe], /muitos contatos/);
 
 console.log("Todos os testes do banco passaram.");

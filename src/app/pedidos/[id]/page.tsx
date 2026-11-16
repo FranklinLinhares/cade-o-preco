@@ -17,6 +17,7 @@ import { DarLance } from "./DarLance";
 import { BotaoConfirmar } from "@/components/BotaoConfirmar";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { QueroTambem } from "./QueroTambem";
+import { SairDoGrupoVencido } from "./SairDoGrupoVencido";
 import { Compartilhar } from "@/components/Compartilhar";
 
 type Pedido = {
@@ -173,7 +174,11 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
     : "Leilão fechado: você não vê os outros lances.";
   if (pedido.preco_maximo) dica += ` Preço máximo: ${porUnidade(pedido.preco_maximo, u)}.`;
   if (pessoasNoGrupo > 0) dica = `Leilão em grupo: ${pessoasNoGrupo + 1} compradores somam ${quantidadeTotal} ${u}. Se vencer, você escolhe para quem do grupo vender, no preço do seu lance. ` + dica;
-  const travado = pessoasNoGrupo > 0 && lances.length > 0;
+  // Dois dias depois do prazo sem escolher o vencedor, o grupo deixa de prender as pessoas
+  // (o banco libera a saída e o cancelamento na mesma hora).
+  const prazoParaEscolher = new Date(new Date(pedido.encerra_em).getTime() + 2 * 86_400_000);
+  const grupoLiberado = (pedido.status === "aberto" || pedido.status === "encerrado") && prazoParaEscolher < new Date();
+  const travado = pessoasNoGrupo > 0 && lances.length > 0 && !grupoLiberado;
   const limiteSaida = new Date(new Date(pedido.encerra_em).getTime() - 2 * 3_600_000);
   const regraSaida = lances.length === 0
     ? "Dá para sair do grupo a qualquer momento até o primeiro lance."
@@ -299,6 +304,19 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       {pedido.aceita_participantes && !souComprador && aberto && empresa.papel === "comprador" && (
         <QueroTambem pedido={id} unidade={u} minhaQuantidade={minhaParte ? Number(minhaParte.quantidade) : null} esperandoAceite={minhaParte?.situacao === "pedido"} maximo={2 * Number(pedido.quantidade)} regraSaida={regraSaida} />
       )}
+      {pedido.aceita_participantes && !souComprador && !aberto && pedido.status === "aberto" && minhaParte?.situacao === "no_grupo" && (
+        <section className="cartao space-y-2 border-violet-300 bg-violet-50">
+          <h2 className="font-semibold">Você está no grupo com {Number(minhaParte.quantidade)} {u}</h2>
+          {grupoLiberado ? (
+            <>
+              <p className="text-sm text-stone-600">Quem criou não escolheu o vencedor em 2 dias depois do prazo. Se não quiser mais esperar, você pode sair do grupo.</p>
+              <SairDoGrupoVencido pedido={id} />
+            </>
+          ) : (
+            <p className="text-sm text-stone-600">O prazo acabou e quem criou está escolhendo o vencedor. Se não escolher até {dataHora(prazoParaEscolher)}, você poderá sair do grupo.</p>
+          )}
+        </section>
+      )}
       {souComprador && pedido.aceita_participantes && (
         <section className="cartao space-y-2 border-violet-300">
           <h2 className="font-semibold">Leilão em grupo · {doGrupo.length === 0 ? "ninguém no grupo ainda" : `${doGrupo.length + 1} pessoas, ${quantidadeTotal} ${u}`}</h2>
@@ -419,7 +437,10 @@ export default async function DetalhePedido({ params }: PageProps<"/pedidos/[id]
       </section>
 
       {souComprador && pedido.status === "aberto" && travado && (
-        <p className="text-sm text-stone-500">Este leilão em grupo já tem lance e outras pessoas contando com ele, por isso não dá mais para cancelar.</p>
+        <p className="text-sm text-stone-500">
+          Este leilão em grupo já tem lance e outras pessoas contando com ele, por isso não dá mais para cancelar.
+          {!aberto && ` Escolha o vencedor até ${dataHora(prazoParaEscolher)}: depois disso, quem está no grupo pode sair e você pode cancelar.`}
+        </p>
       )}
       {souComprador && pedido.status === "aberto" && !travado && (
         <form action={cancelarPedido}>
